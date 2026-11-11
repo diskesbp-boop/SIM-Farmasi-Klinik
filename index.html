@@ -24,21 +24,21 @@
         const { useState, useEffect } = React;
 
         const INITIAL_ITEMS = [
-            { id: 'OBT-001', name: 'Amlodipine 5 mg', category: 'Oral', stock: 120, unit: 'Tablet', minStock: 30, price: 500, isLasa: true, isHighAlert: false, expDate: '2027-02-15', batchNo: 'BATCH-AML5-01' },
-            { id: 'OBT-002', name: 'Amlodipine 10 mg', category: 'Oral', stock: 8, unit: 'Tablet', minStock: 25, price: 800, isLasa: true, isHighAlert: false, expDate: '2027-01-10', batchNo: 'BATCH-AML10-02' },
-            { id: 'OBT-003', name: 'Paracetamol 500 mg', category: 'Oral', stock: 450, unit: 'Kaplet', minStock: 50, price: 300, isLasa: false, isHighAlert: false, expDate: '2028-06-20', batchNo: 'BATCH-PCT-09' },
-            { id: 'OBT-004', name: 'Dexamethasone Inj 5mg/ml', category: 'Injeksi', stock: 45, unit: 'Ampul', minStock: 15, price: 4500, isLasa: true, isHighAlert: true, expDate: '2027-03-30', batchNo: 'BATCH-DEX-88' },
-            { id: 'OBT-005', name: 'Diazepam Inj 5mg/ml', category: 'Injeksi', stock: 12, unit: 'Ampul', minStock: 10, price: 7500, isLasa: true, isHighAlert: true, expDate: '2027-04-12', batchNo: 'BATCH-DZP-11' },
-            { id: 'OBT-006', name: 'Epinefrin (Adrenalin) Inj', category: 'Injeksi', stock: 5, unit: 'Ampul', minStock: 10, price: 12000, isLasa: true, isHighAlert: true, expDate: '2026-12-01', batchNo: 'BATCH-EPN-03' },
-            { id: 'OBT-007', name: 'Vaksin Hepatitis B (Cold Chain)', category: 'Cold-Chain', stock: 18, unit: 'Vial', minStock: 5, price: 45000, isLasa: false, isHighAlert: true, expDate: '2027-08-14', batchNo: 'BATCH-VAK-99' },
-            { id: 'BMHP-001', name: 'Spuit 3cc Terumo', category: 'BMHP', stock: 300, unit: 'Pcs', minStock: 50, price: 1500, isLasa: false, isHighAlert: false, expDate: '2029-01-01', batchNo: 'BATCH-SPT-44' }
+            { id: 'OBT-001', name: 'Amlodipine 5 mg', category: 'Oral', initialStock: 100, unit: 'Tablet', minStock: 30, price: 500, isLasa: true, isHighAlert: false, expDate: '2027-02-15', batchNo: 'BATCH-AML5-01' },
+            { id: 'OBT-002', name: 'Amlodipine 10 mg', category: 'Oral', initialStock: 10, unit: 'Tablet', minStock: 25, price: 800, isLasa: true, isHighAlert: false, expDate: '2027-01-10', batchNo: 'BATCH-AML10-02' },
+            { id: 'OBT-003', name: 'Paracetamol 500 mg', category: 'Oral', initialStock: 500, unit: 'Kaplet', minStock: 50, price: 300, isLasa: false, isHighAlert: false, expDate: '2028-06-20', batchNo: 'BATCH-PCT-09' },
+            { id: 'OBT-004', name: 'Dexamethasone Inj 5mg/ml', category: 'Injeksi', initialStock: 50, unit: 'Ampul', minStock: 15, price: 4500, isLasa: true, isHighAlert: true, expDate: '2027-03-30', batchNo: 'BATCH-DEX-88' },
+            { id: 'OBT-005', name: 'Diazepam Inj 5mg/ml', category: 'Injeksi', initialStock: 15, unit: 'Ampul', minStock: 10, price: 7500, isLasa: true, isHighAlert: true, expDate: '2027-04-12', batchNo: 'BATCH-DZP-11' },
+            { id: 'OBT-006', name: 'Epinefrin (Adrenalin) Inj', category: 'Injeksi', initialStock: 7, unit: 'Ampul', minStock: 10, price: 12000, isLasa: true, isHighAlert: true, expDate: '2026-12-01', batchNo: 'BATCH-EPN-03' },
+            { id: 'OBT-007', name: 'Vaksin Hepatitis B (Cold Chain)', category: 'Cold-Chain', initialStock: 20, unit: 'Vial', minStock: 5, price: 45000, isLasa: false, isHighAlert: true, expDate: '2027-08-14', batchNo: 'BATCH-VAK-99' },
+            { id: 'BMHP-001', name: 'Spuit 3cc Terumo', category: 'BMHP', initialStock: 350, unit: 'Pcs', minStock: 50, price: 1500, isLasa: false, isHighAlert: false, expDate: '2029-01-01', batchNo: 'BATCH-SPT-44' }
         ];
 
         const INITIAL_TRANSACTIONS = [
             { id: 'TRX-1001', date: '2026-11-01', itemId: 'OBT-001', itemName: 'Amlodipine 5 mg', type: 'IN', qty: 100, docNo: 'DO/DISKES/2026/11', notes: 'Droping Diskes' },
-            { id: 'TRX-1002', date: '2026-11-02', itemId: 'OBT-001', itemName: 'Amlodipine 5 mg', type: 'OUT', qty: 10, docNo: 'RSP/2026/001', notes: 'Pasien: Ny. Suminah' },
+            { id: 'TRX-1002', date: '2026-11-02', itemId: 'OBT-001', itemName: 'Amlodipine 5 mg', type: 'OUT', qty: 80, docNo: 'RSP/2026/001', notes: 'Pasien: Ny. Suminah' },
             { id: 'TRX-1003', date: '2026-11-05', itemId: 'OBT-006', itemName: 'Epinefrin (Adrenalin) Inj', type: 'OUT', qty: 2, docNo: 'RSP/2026/005', notes: 'Pasien Emergency IGD' },
-            { id: 'TRX-1004', date: '2026-11-06', itemId: 'OBT-003', itemName: 'Paracetamol 500 mg', type: 'OUT', qty: 45, docNo: 'RSP/2026/006', notes: 'Pasien Umum' }
+            { id: 'TRX-1004', date: '2026-11-06', itemId: 'OBT-003', itemName: 'Paracetamol 500 mg', type: 'OUT', qty: 50, docNo: 'RSP/2026/006', notes: 'Pasien Umum' }
         ];
 
         function App() {
@@ -83,12 +83,43 @@
                 setTimeout(() => setAlertMessage(''), 4000);
             };
 
+            // Fungsi Kalkulasi Stok Real-Time Terpusat (Menjamin Sinkronisasi Total)
+            const calculateCurrentStock = (itemId) => {
+                const targetItem = items.find(i => i.id === itemId);
+                if (!targetItem) return 0;
+                let stock = Number(targetItem.initialStock) || 0;
+
+                transactions.forEach(t => {
+                    if (t.itemId === itemId) {
+                        const qty = Number(t.qty) || 0;
+                        if (t.type === 'IN') {
+                            stock += qty;
+                        } else if (t.type === 'OUT') {
+                            stock -= qty;
+                        } else if (t.type === 'ADJUSTMENT') {
+                            stock += qty; // qty pada adjustment bisa positif (+) atau negatif (-)
+                        }
+                    }
+                });
+                return stock < 0 ? 0 : stock;
+            };
+
+            // Enhanced items with computed stock
+            const getSynchronizedItems = () => {
+                return items.map(item => ({
+                    ...item,
+                    stock: calculateCurrentStock(item.id)
+                }));
+            };
+
+            const syncedItems = getSynchronizedItems();
+
             const getNearExpiredItems = () => {
                 const today = new Date();
                 const sixMonthsFromNow = new Date();
                 sixMonthsFromNow.setDate(today.getDate() + 180);
 
-                return items.filter(item => {
+                return syncedItems.filter(item => {
                     const exp = new Date(item.expDate);
                     return exp <= sixMonthsFromNow;
                 }).map(item => {
@@ -169,7 +200,7 @@
                 const updated = [...invoiceItems];
                 updated[index][field] = value;
                 if (field === 'itemId') {
-                    const sel = items.find(i => i.id === value);
+                    const sel = syncedItems.find(i => i.id === value);
                     if (sel) {
                         updated[index].unit = sel.unit;
                         updated[index].buyPrice = sel.price;
@@ -206,25 +237,10 @@
                     return;
                 }
 
-                let updatedItems = [...items];
                 let newTrxs = [];
-
                 validItems.forEach(itemRow => {
                     const qtyVal = parseInt(itemRow.qty, 10);
-                    updatedItems = updatedItems.map(i => {
-                        if (i.id === itemRow.itemId) {
-                            return {
-                                ...i,
-                                stock: i.stock + qtyVal,
-                                batchNo: itemRow.batchNo || i.batchNo,
-                                expDate: itemRow.expDate || i.expDate,
-                                price: itemRow.buyPrice ? Number(itemRow.buyPrice) : i.price
-                            };
-                        }
-                        return i;
-                    });
-
-                    const target = items.find(i => i.id === itemRow.itemId);
+                    const target = syncedItems.find(i => i.id === itemRow.itemId);
                     newTrxs.push({
                         id: 'TRX-' + Date.now().toString().slice(-5) + '-' + Math.floor(Math.random()*10),
                         date: invoiceHeader.invoiceDate,
@@ -237,9 +253,8 @@
                     });
                 });
 
-                setItems(updatedItems);
                 setTransactions([...newTrxs, ...transactions]);
-                showAlert(`Faktur ${invoiceHeader.invoiceNo} berhasil disimpan!`);
+                showAlert(`Faktur ${invoiceHeader.invoiceNo} berhasil disimpan! Stok otomatis bertambah.`);
                 setInvoiceHeader({ ...invoiceHeader, invoiceNo: '', spNo: '', notes: '' });
                 setInvoiceItems([{ itemId: '', expDate: '', batchNo: '', qty: 1, unit: 'Box', buyPrice: 0, discount: 0, tax: 0 }]);
             };
@@ -256,11 +271,9 @@
                     return;
                 }
 
-                let updatedItems = [...items];
                 let insufficient = false;
-
                 validRows.forEach(row => {
-                    const target = updatedItems.find(i => i.id === row.itemId);
+                    const target = syncedItems.find(i => i.id === row.itemId);
                     if (target && target.stock < parseInt(row.qty, 10)) {
                         insufficient = true;
                         showAlert(`Stok obat ${target.name} tidak mencukupi (sisa ${target.stock})`, 'error');
@@ -272,14 +285,7 @@
                 let newTrxs = [];
                 validRows.forEach(row => {
                     const qtyVal = parseInt(row.qty, 10);
-                    updatedItems = updatedItems.map(i => {
-                        if (i.id === row.itemId) {
-                            return { ...i, stock: i.stock - qtyVal };
-                        }
-                        return i;
-                    });
-
-                    const target = items.find(i => i.id === row.itemId);
+                    const target = syncedItems.find(i => i.id === row.itemId);
                     newTrxs.push({
                         id: 'TRX-' + Date.now().toString().slice(-5) + '-' + Math.floor(Math.random()*10),
                         date: outForm.rxDate || new Date().toISOString().split('T')[0],
@@ -292,21 +298,22 @@
                     });
                 });
 
-                setItems(updatedItems);
                 setTransactions([...newTrxs, ...transactions]);
                 setOutForm({ patientName: '', rxNo: '', rxDate: new Date().toISOString().split('T')[0], items: [{ itemId: '', qty: '' }] });
                 showAlert(`Resep ${outForm.rxNo} berhasil diproses!`);
             };
 
-            const [stockCardItemId, setStockCardItemId] = useState(items[0]?.id || '');
-            const selectedStockCardItem = items.find(i => i.id === stockCardItemId) || items[0];
+            const [stockCardItemId, setStockCardItemId] = useState(syncedItems[0]?.id || '');
+            const selectedStockCardItem = syncedItems.find(i => i.id === stockCardItemId) || syncedItems[0];
 
             const getStockCardTransactions = () => {
                 if (!stockCardItemId) return [];
                 const itemTrxs = transactions.filter(t => t.itemId === stockCardItemId);
                 itemTrxs.sort((a, b) => new Date(a.date) - new Date(b.date));
 
-                let runningStock = 0;
+                const targetItem = items.find(i => i.id === stockCardItemId);
+                let runningStock = targetItem ? (Number(targetItem.initialStock) || 0) : 0;
+
                 return itemTrxs.map(t => {
                     if (t.type === 'IN') {
                         runningStock += t.qty;
@@ -321,7 +328,7 @@
 
             const getPurchasePlanData = () => {
                 const itemUsage = {};
-                items.forEach(i => {
+                syncedItems.forEach(i => {
                     itemUsage[i.id] = { ...i, totalOut: 0, consumptionRate: 0 };
                 });
 
@@ -368,7 +375,7 @@
 
             const purchasePlanList = getPurchasePlanData();
 
-            const filteredProducts = items.filter(item => {
+            const filteredProducts = syncedItems.filter(item => {
                 const matchesSearch = item.name.toLowerCase().includes(productSearch.toLowerCase()) || item.id.toLowerCase().includes(productSearch.toLowerCase());
                 const matchesCategory = productCategoryFilter === 'ALL' || item.category === productCategoryFilter;
                 return matchesSearch && matchesCategory;
@@ -412,7 +419,7 @@
                 const aggregated = {};
                 filteredTrxs.forEach(t => {
                     if (!aggregated[t.itemId]) {
-                        const targetItem = items.find(i => i.id === t.itemId);
+                        const targetItem = syncedItems.find(i => i.id === t.itemId);
                         aggregated[t.itemId] = {
                             id: t.itemId,
                             name: t.itemName || (targetItem ? targetItem.name : 'Unknown'),
@@ -448,7 +455,6 @@
             };
 
             const handleSaveStockOpname = () => {
-                let updatedItems = [...items];
                 let newTrxs = [...transactions];
                 let count = 0;
 
@@ -456,12 +462,11 @@
                     const opnameObj = stockOpnameData[itemId];
                     if (opnameObj && opnameObj.physical !== '') {
                         const physicalVal = parseInt(opnameObj.physical, 10);
-                        const targetItem = items.find(i => i.id === itemId);
+                        const targetItem = syncedItems.find(i => i.id === itemId);
                         if (targetItem && !isNaN(physicalVal)) {
                             const diff = physicalVal - targetItem.stock;
                             if (diff !== 0) {
                                 count++;
-                                updatedItems = updatedItems.map(i => i.id === itemId ? { ...i, stock: physicalVal } : i);
                                 newTrxs.unshift({
                                     id: 'TRX-ADJ-' + Date.now() + '-' + Math.floor(Math.random()*10),
                                     date: new Date().toISOString().split('T')[0],
@@ -477,9 +482,8 @@
                     }
                 });
 
-                setItems(updatedItems);
                 setTransactions(newTrxs);
-                showAlert(`Stok Opname berhasil disimpan! ${count} item disesuaikan.`);
+                showAlert(`Stok Opname berhasil disimpan! ${count} item disesuaikan dengan mutasi.`);
             };
 
             const handleSaveSingleAdjustment = () => {
@@ -491,7 +495,6 @@
                 }
 
                 const diff = physicalVal - selectedAdjustmentItem.stock;
-                let updatedItems = items.map(i => i.id === selectedAdjustmentItem.id ? { ...i, stock: physicalVal } : i);
                 let newTrxs = [
                     {
                         id: 'TRX-ADJ-' + Date.now(),
@@ -506,9 +509,8 @@
                     ...transactions
                 ];
 
-                setItems(updatedItems);
                 setTransactions(newTrxs);
-                showAlert(`Penyesuaian stok ${selectedAdjustmentItem.name} berhasil disimpan!`);
+                showAlert(`Penyesuaian stok ${selectedAdjustmentItem.name} berhasil dicatat!`);
                 setSelectedAdjustmentItem(null);
                 setAdjustmentPhysicalQty('');
                 setAdjustmentReason('');
@@ -600,14 +602,14 @@
                                             <div className="w-12 h-12 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-xl font-bold"><i className="fa-solid fa-boxes-stacked"></i></div>
                                             <div>
                                                 <div className="text-xs font-medium text-slate-500">Total Jenis Produk</div>
-                                                <div className="text-xl font-bold text-slate-800">{items.length} Sediaan</div>
+                                                <div className="text-xl font-bold text-slate-800">{syncedItems.length} Sediaan</div>
                                             </div>
                                         </div>
                                         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
                                             <div className="w-12 h-12 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl font-bold"><i className="fa-solid fa-cubes"></i></div>
                                             <div>
                                                 <div className="text-xs font-medium text-slate-500">Total Stok Fisik</div>
-                                                <div className="text-xl font-bold text-slate-800">{items.reduce((acc, item) => acc + item.stock, 0)} Unit</div>
+                                                <div className="text-xl font-bold text-slate-800">{syncedItems.reduce((acc, item) => acc + item.stock, 0)} Unit</div>
                                             </div>
                                         </div>
                                         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
@@ -621,7 +623,7 @@
                                             <div className="w-12 h-12 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center text-xl font-bold"><i className="fa-solid fa-notes-medical"></i></div>
                                             <div>
                                                 <div className="text-xs font-medium text-slate-500">Stok Kritis / Menipis</div>
-                                                <div className="text-xl font-bold text-rose-600">{items.filter(i => i.stock <= i.minStock).length} Item</div>
+                                                <div className="text-xl font-bold text-rose-600">{syncedItems.filter(i => i.stock <= i.minStock).length} Item</div>
                                             </div>
                                         </div>
                                     </div>
@@ -699,7 +701,7 @@
                                                         setOutForm({...outForm, items: newItems});
                                                     }} className="flex-1 border rounded-lg p-2 text-sm">
                                                         <option value="">-- Pilih Obat --</option>
-                                                        {items.map(item => (
+                                                        {syncedItems.map(item => (
                                                             <option key={item.id} value={item.id}>{item.name} (Stok: {item.stock} {item.unit})</option>
                                                         ))}
                                                     </select>
@@ -846,7 +848,7 @@
                                                             <td className="p-3 font-mono text-xs">{item.id}</td>
                                                             <td className="p-3 font-medium text-slate-800">{item.name}</td>
                                                             <td className="p-3">{item.category}</td>
-                                                            <td className="p-3 font-bold">{item.stock} {item.unit}</td>
+                                                            <td className="p-3 font-bold text-blue-600">{item.stock} {item.unit}</td>
                                                             <td className="p-3 text-xs">
                                                                 <div>{item.batchNo}</div>
                                                                 <div className="text-slate-400">{item.expDate}</div>
@@ -874,7 +876,7 @@
                                         <div className="w-full sm:w-64">
                                             <label className="block text-xs font-semibold text-slate-500 mb-1">Pilih Item Obat/BMHP:</label>
                                             <select value={stockCardItemId} onChange={e => setStockCardItemId(e.target.value)} className="w-full border rounded-lg p-2 text-sm">
-                                                {items.map(i => (
+                                                {syncedItems.map(i => (
                                                     <option key={i.id} value={i.id}>{i.name}</option>
                                                 ))}
                                             </select>
@@ -1046,7 +1048,7 @@
                                                                 <td className="p-2">
                                                                     <select value={row.itemId} onChange={e => handleInvoiceItemChange(idx, 'itemId', e.target.value)} className="w-full border rounded p-1.5 text-xs">
                                                                         <option value="">Pilih Produk</option>
-                                                                        {items.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
+                                                                        {syncedItems.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
                                                                     </select>
                                                                 </td>
                                                                 <td className="p-2">
@@ -1141,7 +1143,7 @@
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y">
-                                                {items.map(item => {
+                                                {syncedItems.map(item => {
                                                     const currentPhysical = stockOpnameData[item.id]?.physical ?? item.stock;
                                                     const diff = Number(currentPhysical) - item.stock;
                                                     return (
@@ -1201,7 +1203,7 @@
                                                 </div>
                                             </div>
                                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                                {items.map(item => (
+                                                {syncedItems.map(item => (
                                                     <div 
                                                         key={item.id} 
                                                         onClick={() => {
