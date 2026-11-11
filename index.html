@@ -63,6 +63,11 @@
             const [outEndDate, setOutEndDate] = useState(new Date().toISOString().split('T')[0]);
 
             const [selectedAdjustmentItem, setSelectedAdjustmentItem] = useState(null);
+            const [adjustmentPhysicalQty, setAdjustmentPhysicalQty] = useState('');
+            const [adjustmentReason, setAdjustmentReason] = useState('');
+            const [adjustmentNotes, setAdjustmentNotes] = useState('');
+
+            const [stockOpnameData, setStockOpnameData] = useState({});
 
             useEffect(() => {
                 localStorage.setItem('sim_farmasi_items', JSON.stringify(items));
@@ -104,7 +109,7 @@
                 document.body.appendChild(downloadAnchor);
                 downloadAnchor.click();
                 downloadAnchor.remove();
-                showAlert('Data cadangan berhasil diunduh! Silakan simpan di Google Drive.');
+                showAlert('Data cadangan berhasil diunduh!');
             };
 
             const handleImportBackup = (e) => {
@@ -117,7 +122,7 @@
                             if (parsed.items && parsed.transactions) {
                                 setItems(parsed.items);
                                 setTransactions(parsed.transactions);
-                                showAlert('Data berhasil dipulihkan dari file backup!');
+                                showAlert('Data berhasil dipulihkan!');
                             } else {
                                 showAlert('Format file JSON tidak valid.', 'error');
                             }
@@ -234,7 +239,7 @@
 
                 setItems(updatedItems);
                 setTransactions([...newTrxs, ...transactions]);
-                showAlert(`Faktur ${invoiceHeader.invoiceNo} berhasil disimpan! Stok otomatis bertambah.`);
+                showAlert(`Faktur ${invoiceHeader.invoiceNo} berhasil disimpan!`);
                 setInvoiceHeader({ ...invoiceHeader, invoiceNo: '', spNo: '', notes: '' });
                 setInvoiceItems([{ itemId: '', expDate: '', batchNo: '', qty: 1, unit: 'Box', buyPrice: 0, discount: 0, tax: 0 }]);
             };
@@ -290,7 +295,7 @@
                 setItems(updatedItems);
                 setTransactions([...newTrxs, ...transactions]);
                 setOutForm({ patientName: '', rxNo: '', rxDate: new Date().toISOString().split('T')[0], items: [{ itemId: '', qty: '' }] });
-                showAlert(`Resep ${outForm.rxNo} berhasil diproses & stok obat dipotong!`);
+                showAlert(`Resep ${outForm.rxNo} berhasil diproses!`);
             };
 
             const [stockCardItemId, setStockCardItemId] = useState(items[0]?.id || '');
@@ -357,11 +362,7 @@
                     if (percentage <= 80) abcClass = 'A';
                     else if (percentage <= 95) abcClass = 'B';
 
-                    return {
-                        ...item,
-                        abcClass,
-                        rank: idx + 1
-                    };
+                    return { ...item, abcClass, rank: idx + 1 };
                 });
             };
 
@@ -385,7 +386,7 @@
                 document.body.appendChild(link);
                 link.click();
                 link.remove();
-                showAlert("Daftar Produk berhasil diunduh dalam format Excel (CSV)!");
+                showAlert("Daftar Produk berhasil diunduh!");
             };
 
             const handleExportPurchasePlanExcel = () => {
@@ -400,7 +401,7 @@
                 document.body.appendChild(link);
                 link.click();
                 link.remove();
-                showAlert("Rencana Pembelian & Analisis Pareto ABC berhasil diunduh dalam format Excel (CSV)!");
+                showAlert("Rencana Pembelian berhasil diunduh!");
             };
 
             const getDailyOutgoingData = () => {
@@ -443,7 +444,75 @@
                 document.body.appendChild(link);
                 link.click();
                 link.remove();
-                showAlert("Daftar Barang Keluar berhasil diunduh dalam format Excel (CSV)!");
+                showAlert("Daftar Barang Keluar berhasil diunduh!");
+            };
+
+            const handleSaveStockOpname = () => {
+                let updatedItems = [...items];
+                let newTrxs = [...transactions];
+                let count = 0;
+
+                Object.keys(stockOpnameData).forEach(itemId => {
+                    const opnameObj = stockOpnameData[itemId];
+                    if (opnameObj && opnameObj.physical !== '') {
+                        const physicalVal = parseInt(opnameObj.physical, 10);
+                        const targetItem = items.find(i => i.id === itemId);
+                        if (targetItem && !isNaN(physicalVal)) {
+                            const diff = physicalVal - targetItem.stock;
+                            if (diff !== 0) {
+                                count++;
+                                updatedItems = updatedItems.map(i => i.id === itemId ? { ...i, stock: physicalVal } : i);
+                                newTrxs.unshift({
+                                    id: 'TRX-ADJ-' + Date.now() + '-' + Math.floor(Math.random()*10),
+                                    date: new Date().toISOString().split('T')[0],
+                                    itemId: itemId,
+                                    itemName: targetItem.name,
+                                    type: 'ADJUSTMENT',
+                                    qty: diff,
+                                    docNo: 'OPNAME/' + new Date().toISOString().slice(0,7),
+                                    notes: opnameObj.notes || 'Stok Opname Rutin'
+                                });
+                            }
+                        }
+                    }
+                });
+
+                setItems(updatedItems);
+                setTransactions(newTrxs);
+                showAlert(`Stok Opname berhasil disimpan! ${count} item disesuaikan.`);
+            };
+
+            const handleSaveSingleAdjustment = () => {
+                if (!selectedAdjustmentItem) return;
+                const physicalVal = parseInt(adjustmentPhysicalQty, 10);
+                if (isNaN(physicalVal)) {
+                    showAlert('Mohon masukkan jumlah stok fisik yang valid!', 'error');
+                    return;
+                }
+
+                const diff = physicalVal - selectedAdjustmentItem.stock;
+                let updatedItems = items.map(i => i.id === selectedAdjustmentItem.id ? { ...i, stock: physicalVal } : i);
+                let newTrxs = [
+                    {
+                        id: 'TRX-ADJ-' + Date.now(),
+                        date: new Date().toISOString().split('T')[0],
+                        itemId: selectedAdjustmentItem.id,
+                        itemName: selectedAdjustmentItem.name,
+                        type: 'ADJUSTMENT',
+                        qty: diff,
+                        docNo: 'ADJ/' + new Date().toISOString().slice(0,7),
+                        notes: `Penyesuaian Stok (${adjustmentReason || 'Selisih'}): ${adjustmentNotes}`
+                    },
+                    ...transactions
+                ];
+
+                setItems(updatedItems);
+                setTransactions(newTrxs);
+                showAlert(`Penyesuaian stok ${selectedAdjustmentItem.name} berhasil disimpan!`);
+                setSelectedAdjustmentItem(null);
+                setAdjustmentPhysicalQty('');
+                setAdjustmentReason('');
+                setAdjustmentNotes('');
             };
 
             return (
@@ -477,47 +546,37 @@
                     <div className="max-w-7xl mx-auto px-4 py-6 flex-1 w-full flex flex-col lg:flex-row gap-6">
                         <aside className="w-full lg:w-64 flex-shrink-0 space-y-1 bg-white p-3 rounded-xl border border-slate-200 shadow-sm self-start">
                             <div className="px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">Menu Utama</div>
-                            
                             <button onClick={() => setActiveTab('dashboard')} className={`w-full text-left px-3.5 py-2.5 rounded-lg text-sm font-medium flex items-center justify-between transition ${activeTab === 'dashboard' ? 'bg-blue-50 text-blue-600 font-semibold' : 'text-slate-600 hover:bg-slate-50'}`}>
                                 <span className="flex items-center gap-2.5"><i className="fa-solid fa-chart-pie w-4 text-center"></i> Dashboard Umum</span>
                             </button>
-
                             <button onClick={() => setActiveTab('prescription')} className={`w-full text-left px-3.5 py-2.5 rounded-lg text-sm font-medium flex items-center justify-between transition ${activeTab === 'prescription' ? 'bg-blue-50 text-blue-600 font-semibold' : 'text-slate-600 hover:bg-slate-50'}`}>
                                 <span className="flex items-center gap-2.5"><i className="fa-solid fa-file-prescription w-4 text-center"></i> Penebusan Resep</span>
                             </button>
-
                             <button onClick={() => setActiveTab('daily_outgoing')} className={`w-full text-left px-3.5 py-2.5 rounded-lg text-sm font-medium flex items-center justify-between transition ${activeTab === 'daily_outgoing' ? 'bg-blue-50 text-blue-600 font-semibold' : 'text-slate-600 hover:bg-slate-50'}`}>
                                 <span className="flex items-center gap-2.5"><i className="fa-solid fa-boxes-stacked w-4 text-center"></i> Daftar Barang Keluar</span>
                             </button>
-
                             <button onClick={() => setActiveTab('products')} className={`w-full text-left px-3.5 py-2.5 rounded-lg text-sm font-medium flex items-center justify-between transition ${activeTab === 'products' ? 'bg-blue-50 text-blue-600 font-semibold' : 'text-slate-600 hover:bg-slate-50'}`}>
                                 <span className="flex items-center gap-2.5"><i className="fa-solid fa-pills w-4 text-center"></i> Daftar Produk</span>
                             </button>
-
                             <button onClick={() => setActiveTab('stockcard')} className={`w-full text-left px-3.5 py-2.5 rounded-lg text-sm font-medium flex items-center justify-between transition ${activeTab === 'stockcard' ? 'bg-blue-50 text-blue-600 font-semibold' : 'text-slate-600 hover:bg-slate-50'}`}>
                                 <span className="flex items-center gap-2.5"><i className="fa-solid fa-id-card-clip w-4 text-center"></i> Kartu Stok</span>
                             </button>
 
                             <div className="px-3 pt-4 pb-1 text-xs font-semibold text-slate-400 uppercase tracking-wider">Pengadaan & Pembelian</div>
-
                             <button onClick={() => setActiveTab('purchase_plan')} className={`w-full text-left px-3.5 py-2.5 rounded-lg text-sm font-medium flex items-center justify-between transition ${activeTab === 'purchase_plan' ? 'bg-blue-50 text-blue-600 font-semibold' : 'text-slate-600 hover:bg-slate-50'}`}>
                                 <span className="flex items-center gap-2.5"><i className="fa-solid fa-clipboard-list w-4 text-center"></i> Rencana Pembelian</span>
                             </button>
-
                             <button onClick={() => setActiveTab('incoming')} className={`w-full text-left px-3.5 py-2.5 rounded-lg text-sm font-medium flex items-center justify-between transition ${activeTab === 'incoming' ? 'bg-blue-50 text-blue-600 font-semibold' : 'text-slate-600 hover:bg-slate-50'}`}>
                                 <span className="flex items-center gap-2.5"><i className="fa-solid fa-file-invoice-dollar w-4 text-center"></i> Faktur Pembelian</span>
                             </button>
-
                             <button onClick={() => setActiveTab('returns')} className={`w-full text-left px-3.5 py-2.5 rounded-lg text-sm font-medium flex items-center justify-between transition ${activeTab === 'returns' ? 'bg-blue-50 text-blue-600 font-semibold' : 'text-slate-600 hover:bg-slate-50'}`}>
                                 <span className="flex items-center gap-2.5"><i className="fa-solid fa-rotate-left w-4 text-center"></i> Retur Pembelian</span>
                             </button>
 
                             <div className="px-3 pt-4 pb-1 text-xs font-semibold text-slate-400 uppercase tracking-wider">Stok & Audit</div>
-
                             <button onClick={() => setActiveTab('stock_opname')} className={`w-full text-left px-3.5 py-2.5 rounded-lg text-sm font-medium flex items-center justify-between transition ${activeTab === 'stock_opname' ? 'bg-blue-50 text-blue-600 font-semibold' : 'text-slate-600 hover:bg-slate-50'}`}>
                                 <span className="flex items-center gap-2.5"><i className="fa-solid fa-boxes-packing w-4 text-center"></i> Stok Opname</span>
                             </button>
-
                             <button onClick={() => setActiveTab('adjustment')} className={`w-full text-left px-3.5 py-2.5 rounded-lg text-sm font-medium flex items-center justify-between transition ${activeTab === 'adjustment' ? 'bg-blue-50 text-blue-600 font-semibold' : 'text-slate-600 hover:bg-slate-50'}`}>
                                 <span className="flex items-center gap-2.5"><i className="fa-solid fa-sliders w-4 text-center"></i> Penyesuaian Stok</span>
                             </button>
@@ -618,15 +677,15 @@
                                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                             <div>
                                                 <label className="block text-xs font-semibold text-slate-600 mb-1">No. Resep *</label>
-                                                <input type="text" value={outForm.rxNo} onChange={e => setOutForm({...outForm, rxNo: e.target.value})} placeholder="Contoh: RSP/2026/012" className="w-full border rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none" required />
+                                                <input type="text" value={outForm.rxNo} onChange={e => setOutForm({...outForm, rxNo: e.target.value})} placeholder="Contoh: RSP/2026/012" className="w-full border rounded-lg p-2.5 text-sm outline-none" required />
                                             </div>
                                             <div>
                                                 <label className="block text-xs font-semibold text-slate-600 mb-1">Nama Pasien *</label>
-                                                <input type="text" value={outForm.patientName} onChange={e => setOutForm({...outForm, patientName: e.target.value})} placeholder="Contoh: Ny. Suminah" className="w-full border rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none" required />
+                                                <input type="text" value={outForm.patientName} onChange={e => setOutForm({...outForm, patientName: e.target.value})} placeholder="Contoh: Ny. Suminah" className="w-full border rounded-lg p-2.5 text-sm outline-none" required />
                                             </div>
                                             <div>
                                                 <label className="block text-xs font-semibold text-slate-600 mb-1">Tanggal Resep *</label>
-                                                <input type="date" value={outForm.rxDate} onChange={e => setOutForm({...outForm, rxDate: e.target.value})} className="w-full border rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none" required />
+                                                <input type="date" value={outForm.rxDate} onChange={e => setOutForm({...outForm, rxDate: e.target.value})} className="w-full border rounded-lg p-2.5 text-sm outline-none" required />
                                             </div>
                                         </div>
 
@@ -652,7 +711,7 @@
                                                     {outForm.items.length > 1 && (
                                                         <button type="button" onClick={() => {
                                                             setOutForm({...outForm, items: outForm.items.filter((_, i) => i !== idx)});
-                                                        }} className="text-rose-500 hover:text-rose-700 p-2"><i className="fa-solid fa-trash"></i></button>
+                                                        }} className="text-rose-500 p-2"><i className="fa-solid fa-trash"></i></button>
                                                     )}
                                                 </div>
                                             ))}
@@ -745,7 +804,7 @@
                                                 value={productSearch} 
                                                 onChange={e => setProductSearch(e.target.value)} 
                                                 placeholder="Cari nama obat / kode..." 
-                                                className="border rounded-lg px-3 py-2 text-sm w-full sm:w-56 focus:ring-2 focus:ring-blue-500 outline-none" 
+                                                className="border rounded-lg px-3 py-2 text-sm w-full sm:w-56 outline-none" 
                                             />
                                             <select 
                                                 value={productCategoryFilter} 
@@ -850,8 +909,8 @@
                                                         <td className="p-3">{t.date}</td>
                                                         <td className="p-3 font-mono text-xs">{t.docNo}</td>
                                                         <td className="p-3 font-semibold text-xs">{t.type}</td>
-                                                        <td className="p-3 text-right text-emerald-600 font-bold">{t.type === 'IN' ? `+${t.qty}` : '-'}</td>
-                                                        <td className="p-3 text-right text-rose-600 font-bold">{t.type === 'OUT' ? `-${t.qty}` : '-'}</td>
+                                                        <td className="p-3 text-right text-emerald-600 font-bold">{t.type === 'IN' || (t.type === 'ADJUSTMENT' && t.qty > 0) ? `+${Math.abs(t.qty)}` : '-'}</td>
+                                                        <td className="p-3 text-right text-rose-600 font-bold">{t.type === 'OUT' || (t.type === 'ADJUSTMENT' && t.qty < 0) ? `-${Math.abs(t.qty)}` : '-'}</td>
                                                         <td className="p-3 text-right font-bold text-slate-800">{t.balance}</td>
                                                         <td className="p-3 text-xs">{t.notes}</td>
                                                     </tr>
@@ -1013,7 +1072,7 @@
                                                                 </td>
                                                                 <td className="p-2 text-center">
                                                                     {invoiceItems.length > 1 && (
-                                                                        <button type="button" onClick={() => handleRemoveInvoiceItem(idx)} className="text-rose-500 hover:text-rose-700">
+                                                                        <button type="button" onClick={() => handleRemoveInvoiceItem(idx)} className="text-rose-500">
                                                                             <i className="fa-solid fa-trash"></i>
                                                                         </button>
                                                                     )}
@@ -1064,7 +1123,7 @@
                                             <h2 className="text-lg font-bold text-slate-800">Stok Opname Farmasi</h2>
                                             <p className="text-sm text-slate-500">Pencocokan stok sistem dengan stok fisik sediaan obat &amp; BMHP.</p>
                                         </div>
-                                        <button onClick={() => showAlert("Stok Opname berhasil disimpan & disinkronkan!")} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-4 py-2 rounded-lg shadow transition">
+                                        <button onClick={handleSaveStockOpname} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-4 py-2 rounded-lg shadow transition">
                                             Simpan Hasil Opname
                                         </button>
                                     </div>
@@ -1082,24 +1141,49 @@
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y">
-                                                {items.map(item => (
-                                                    <tr key={item.id} className="hover:bg-slate-50">
-                                                        <td className="p-3 font-mono text-xs">{item.id}</td>
-                                                        <td className="p-3 font-medium text-slate-800">{item.name}</td>
-                                                        <td className="p-3 font-bold text-blue-600">{item.stock} {item.unit}</td>
-                                                        <td className="p-3">
-                                                            <input 
-                                                                type="number" 
-                                                                defaultValue={item.stock} 
-                                                                className="border rounded px-2 py-1.5 text-sm w-28 font-bold text-slate-800"
-                                                            />
-                                                        </td>
-                                                        <td className="p-3 font-bold text-slate-500">0</td>
-                                                        <td className="p-3">
-                                                            <input type="text" placeholder="Catatan opname..." className="border rounded px-2 py-1.5 text-sm w-full" />
-                                                        </td>
-                                                    </tr>
-                                                ))}
+                                                {items.map(item => {
+                                                    const currentPhysical = stockOpnameData[item.id]?.physical ?? item.stock;
+                                                    const diff = Number(currentPhysical) - item.stock;
+                                                    return (
+                                                        <tr key={item.id} className="hover:bg-slate-50">
+                                                            <td className="p-3 font-mono text-xs">{item.id}</td>
+                                                            <td className="p-3 font-medium text-slate-800">{item.name}</td>
+                                                            <td className="p-3 font-bold text-blue-600">{item.stock} {item.unit}</td>
+                                                            <td className="p-3">
+                                                                <input 
+                                                                    type="number" 
+                                                                    value={currentPhysical} 
+                                                                    onChange={e => {
+                                                                        const val = e.target.value;
+                                                                        setStockOpnameData(prev => ({
+                                                                            ...prev,
+                                                                            [item.id]: { ...(prev[item.id] || {}), physical: val }
+                                                                        }));
+                                                                    }}
+                                                                    className="border rounded px-2 py-1.5 text-sm w-28 font-bold text-slate-800"
+                                                                />
+                                                            </td>
+                                                            <td className={`p-3 font-bold ${diff > 0 ? 'text-emerald-600' : diff < 0 ? 'text-rose-600' : 'text-slate-500'}`}>
+                                                                {diff > 0 ? `+${diff}` : diff} {item.unit}
+                                                            </td>
+                                                            <td className="p-3">
+                                                                <input 
+                                                                    type="text" 
+                                                                    placeholder="Catatan opname..." 
+                                                                    value={stockOpnameData[item.id]?.notes || ''}
+                                                                    onChange={e => {
+                                                                        const val = e.target.value;
+                                                                        setStockOpnameData(prev => ({
+                                                                            ...prev,
+                                                                            [item.id]: { ...(prev[item.id] || {}), notes: val }
+                                                                        }));
+                                                                    }}
+                                                                    className="border rounded px-2 py-1.5 text-sm w-full" 
+                                                                />
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
                                             </tbody>
                                         </table>
                                     </div>
@@ -1120,7 +1204,10 @@
                                                 {items.map(item => (
                                                     <div 
                                                         key={item.id} 
-                                                        onClick={() => setSelectedAdjustmentItem(item)}
+                                                        onClick={() => {
+                                                            setSelectedAdjustmentItem(item);
+                                                            setAdjustmentPhysicalQty(item.stock);
+                                                        }}
                                                         className="p-4 rounded-xl border border-slate-200 hover:border-blue-500 hover:shadow-md cursor-pointer transition bg-white flex flex-col justify-between"
                                                     >
                                                         <div>
@@ -1149,10 +1236,7 @@
                                                     <div className="text-xs uppercase tracking-wider text-blue-100">Penyesuaian Stok</div>
                                                     <div className="text-base font-bold">{selectedAdjustmentItem.id} {selectedAdjustmentItem.name}</div>
                                                 </div>
-                                                <button onClick={() => {
-                                                    showAlert(`Penyesuaian stok untuk ${selectedAdjustmentItem.name} berhasil disimpan!`);
-                                                    setSelectedAdjustmentItem(null);
-                                                }} className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-5 py-2 rounded-lg text-sm shadow">
+                                                <button onClick={handleSaveSingleAdjustment} className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold px-5 py-2 rounded-lg text-sm shadow">
                                                     Simpan
                                                 </button>
                                             </div>
@@ -1192,15 +1276,18 @@
                                                                 <div className="flex items-center gap-1">
                                                                     <input 
                                                                         type="number" 
-                                                                        defaultValue={selectedAdjustmentItem.stock} 
+                                                                        value={adjustmentPhysicalQty} 
+                                                                        onChange={e => setAdjustmentPhysicalQty(e.target.value)}
                                                                         className="border rounded p-1.5 text-xs w-20 font-bold text-blue-600" 
                                                                     />
                                                                     <span className="text-xs text-slate-500">{selectedAdjustmentItem.unit}</span>
                                                                 </div>
                                                             </td>
-                                                            <td className="p-3 font-bold text-emerald-600">0 {selectedAdjustmentItem.unit}</td>
+                                                            <td className={`p-3 font-bold ${(Number(adjustmentPhysicalQty) - selectedAdjustmentItem.stock) > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                                                {(Number(adjustmentPhysicalQty) - selectedAdjustmentItem.stock) > 0 ? `+${Number(adjustmentPhysicalQty) - selectedAdjustmentItem.stock}` : (Number(adjustmentPhysicalQty) - selectedAdjustmentItem.stock)} {selectedAdjustmentItem.unit}
+                                                            </td>
                                                             <td className="p-3">
-                                                                <select className="border rounded p-1.5 text-xs w-full bg-white">
+                                                                <select value={adjustmentReason} onChange={e => setAdjustmentReason(e.target.value)} className="border rounded p-1.5 text-xs w-full bg-white">
                                                                     <option value="">Pilih Penyebab Selisih</option>
                                                                     <option value="Rusak">Barang Rusak / Pecah</option>
                                                                     <option value="Hilang">Selisih Opname / Hilang</option>
@@ -1209,7 +1296,7 @@
                                                                 </select>
                                                             </td>
                                                             <td className="p-3">
-                                                                <input type="text" placeholder="Catatan..." className="border rounded p-1.5 text-xs w-full" />
+                                                                <input type="text" value={adjustmentNotes} onChange={e => setAdjustmentNotes(e.target.value)} placeholder="Catatan..." className="border rounded p-1.5 text-xs w-full" />
                                                             </td>
                                                             <td className="p-3 text-center">
                                                                 <input type="checkbox" defaultChecked className="w-4 h-4 text-blue-600 rounded" />
@@ -1219,26 +1306,20 @@
                                                 </table>
                                             </div>
 
-                                            <div className="flex justify-center">
-                                                <button type="button" className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-4 py-2 rounded-lg shadow transition flex items-center gap-2">
-                                                    <i className="fa-solid fa-plus"></i> Tambahkan Stok Baru [Ctrl + N]
-                                                </button>
-                                            </div>
-
                                             <div className="flex justify-end pt-4 border-t">
                                                 <div className="w-80 bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2 text-xs">
                                                     <div className="font-bold text-slate-800 text-sm mb-1 pb-1 border-b">Ringkasan Penyesuaian Stok</div>
                                                     <div className="flex justify-between">
                                                         <span className="text-slate-500">Total Stok Fisik:</span>
-                                                        <span className="font-bold text-slate-800">{selectedAdjustmentItem.stock} {selectedAdjustmentItem.unit}</span>
+                                                        <span className="font-bold text-slate-800">{adjustmentPhysicalQty !== '' ? adjustmentPhysicalQty : selectedAdjustmentItem.stock} {selectedAdjustmentItem.unit}</span>
                                                     </div>
                                                     <div className="flex justify-between">
                                                         <span className="text-slate-500">Jumlah Penyesuaian:</span>
-                                                        <span className="font-bold text-blue-600">0 {selectedAdjustmentItem.unit}</span>
+                                                        <span className="font-bold text-blue-600">{(Number(adjustmentPhysicalQty) - selectedAdjustmentItem.stock)} {selectedAdjustmentItem.unit}</span>
                                                     </div>
                                                     <div className="flex justify-between text-sm border-t pt-2">
                                                         <span className="font-bold text-slate-800">Nilai Penyesuaian:</span>
-                                                        <span className="font-extrabold text-emerald-600">Rp 0</span>
+                                                        <span className="font-extrabold text-emerald-600">Rp {Math.abs((Number(adjustmentPhysicalQty) - selectedAdjustmentItem.stock) * selectedAdjustmentItem.price).toLocaleString()}</span>
                                                     </div>
                                                 </div>
                                             </div>
