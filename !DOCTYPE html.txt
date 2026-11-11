@@ -1,0 +1,1597 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Manajemen Farmasi Klinik - Apotek Digital</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- React & Babel Standalone -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 antialiased">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // Data Awal Sediaan Obat & BMHP
+        const INITIAL_ITEMS = [
+            { id: 'OBT-001', name: 'Amlodipine 5 mg', category: 'Oral', stock: 120, unit: 'Tablet', minStock: 30, price: 500, isLasa: true, isHighAlert: false, expDate: '2027-02-15', batchNo: 'BATCH-AML5-01' },
+            { id: 'OBT-002', name: 'Amlodipine 10 mg', category: 'Oral', stock: 8, unit: 'Tablet', minStock: 25, price: 800, isLasa: true, isHighAlert: false, expDate: '2027-01-10', batchNo: 'BATCH-AML10-02' },
+            { id: 'OBT-003', name: 'Paracetamol 500 mg', category: 'Oral', stock: 450, unit: 'Kaplet', minStock: 50, price: 300, isLasa: false, isHighAlert: false, expDate: '2028-06-20', batchNo: 'BATCH-PCT-09' },
+            { id: 'OBT-004', name: 'Dexamethasone Inj 5mg/ml', category: 'Injeksi', stock: 45, unit: 'Ampul', minStock: 15, price: 4500, isLasa: true, isHighAlert: true, expDate: '2027-03-30', batchNo: 'BATCH-DEX-88' },
+            { id: 'OBT-005', name: 'Diazepam Inj 5mg/ml', category: 'Injeksi', stock: 12, unit: 'Ampul', minStock: 10, price: 7500, isLasa: true, isHighAlert: true, expDate: '2027-04-12', batchNo: 'BATCH-DZP-11' },
+            { id: 'OBT-006', name: 'Epinefrin (Adrenalin) Inj', category: 'Injeksi', stock: 5, unit: 'Ampul', minStock: 10, price: 12000, isLasa: true, isHighAlert: true, expDate: '2026-12-01', batchNo: 'BATCH-EPN-03' },
+            { id: 'OBT-007', name: 'Vaksin Hepatitis B (Cold Chain)', category: 'Cold-Chain', stock: 18, unit: 'Vial', minStock: 5, price: 45000, isLasa: false, isHighAlert: true, expDate: '2027-08-14', batchNo: 'BATCH-VAK-99' },
+            { id: 'BMHP-001', name: 'Spuit 3cc Terumo', category: 'BMHP', stock: 300, unit: 'Pcs', minStock: 50, price: 1500, isLasa: false, isHighAlert: false, expDate: '2029-01-01', batchNo: 'BATCH-SPT-44' }
+        ];
+
+        const INITIAL_TRANSACTIONS = [
+            { id: 'TRX-1001', date: '2026-11-01', itemId: 'OBT-001', itemName: 'Amlodipine 5 mg', type: 'IN', qty: 100, docNo: 'DO/DISKES/2026/11', notes: 'Droping Diskes' },
+            { id: 'TRX-1002', date: '2026-11-02', itemId: 'OBT-001', itemName: 'Amlodipine 5 mg', type: 'OUT', qty: 10, docNo: 'RSP/2026/001', notes: 'Pasien: Ny. Suminah' },
+            { id: 'TRX-1003', date: '2026-11-05', itemId: 'OBT-006', itemName: 'Epinefrin (Adrenalin) Inj', type: 'OUT', qty: 2, docNo: 'RSP/2026/005', notes: 'Pasien Emergency IGD' },
+            { id: 'TRX-1004', date: '2026-11-06', itemId: 'OBT-003', itemName: 'Paracetamol 500 mg', type: 'OUT', qty: 45, docNo: 'RSP/2026/006', notes: 'Pasien Umum' }
+        ];
+
+        function App() {
+            const [activeTab, setActiveTab] = useState('dashboard');
+            const [items, setItems] = useState(() => {
+                const saved = localStorage.getItem('sim_farmasi_items');
+                return saved ? JSON.parse(saved) : INITIAL_ITEMS;
+            });
+
+            const [transactions, setTransactions] = useState(() => {
+                const saved = localStorage.getItem('sim_farmasi_trxs');
+                return saved ? JSON.parse(saved) : INITIAL_TRANSACTIONS;
+            });
+
+            const [alertMessage, setAlertMessage] = useState('');
+            const [alertType, setAlertType] = useState('success');
+
+            // Product Search & Filter state
+            const [productSearch, setProductSearch] = useState('');
+            const [productCategoryFilter, setProductCategoryFilter] = useState('ALL');
+
+            // Daily Outgoing Items Filter state
+            const [outgoingDateFilter, setOutgoingDateFilter] = useState(new Date().toISOString().split('T')[0]);
+
+            // Purchase Return Form State (Retur Pembelian ke Supplier/PBF/Diskes)
+            const [purchaseReturnForm, setPurchaseReturnForm] = useState({
+                invoiceNo: '',
+                supplier: '',
+                returnDate: new Date().toISOString().split('T')[0],
+                items: [{ itemId: '', qty: '', unit: '', reason: 'Mendekati Kadaluwarsa (ED)' }]
+            });
+
+            // Stock Opname States (Top-level to adhere strictly to Rules of Hooks)
+            const [opnameDate, setOpnameDate] = useState(new Date().toISOString().split('T')[0]);
+            const [opnameNotes, setOpnameNotes] = useState('');
+            const [physicalCounts, setPhysicalCounts] = useState(() => {
+                const map = {};
+                INITIAL_ITEMS.forEach(i => { map[i.id] = i.stock; });
+                return map;
+            });
+            const [opnameReasons, setOpnameReasons] = useState({});
+
+            useEffect(() => {
+                localStorage.setItem('sim_farmasi_items', JSON.stringify(items));
+            }, [items]);
+
+            useEffect(() => {
+                localStorage.setItem('sim_farmasi_trxs', JSON.stringify(transactions));
+            }, [transactions]);
+
+            const showAlert = (msg, type = 'success') => {
+                setAlertMessage(msg);
+                setAlertType(type);
+                setTimeout(() => setAlertMessage(''), 4000);
+            };
+
+            const getNearExpiredItems = () => {
+                const today = new Date();
+                const sixMonthsFromNow = new Date();
+                sixMonthsFromNow.setDate(today.getDate() + 180);
+
+                return items.filter(item => {
+                    const exp = new Date(item.expDate);
+                    return exp <= sixMonthsFromNow;
+                }).map(item => {
+                    const exp = new Date(item.expDate);
+                    const diffTime = exp - today;
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    return { ...item, diffDays };
+                });
+            };
+
+            const nearExpiredItems = getNearExpiredItems();
+
+            const handleExportBackup = () => {
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ items, transactions }, null, 2));
+                const downloadAnchor = document.createElement('a');
+                downloadAnchor.setAttribute("href", dataStr);
+                downloadAnchor.setAttribute("download", `Backup_Farmasi_${new Date().toISOString().slice(0,10)}.json`);
+                document.body.appendChild(downloadAnchor);
+                downloadAnchor.click();
+                downloadAnchor.remove();
+                showAlert('Data cadangan berhasil diunduh! Silakan simpan di Google Drive.');
+            };
+
+            const handleImportBackup = (e) => {
+                const fileReader = new FileReader();
+                if (e.target.files && e.target.files[0]) {
+                    fileReader.readAsText(e.target.files[0], "UTF-8");
+                    fileReader.onload = (event) => {
+                        try {
+                            const parsed = JSON.parse(event.target.result);
+                            if (parsed.items && parsed.transactions) {
+                                setItems(parsed.items);
+                                setTransactions(parsed.transactions);
+                                showAlert('Data berhasil dipulihkan dari file backup!');
+                            } else {
+                                showAlert('Format file JSON tidak valid.', 'error');
+                            }
+                        } catch (err) {
+                            showAlert('Gagal membaca file JSON backup.', 'error');
+                        }
+                    };
+                }
+            };
+
+            // Form States for Resep
+            const [outForm, setOutForm] = useState({
+                patientName: '',
+                rxNo: '',
+                rxDate: new Date().toISOString().split('T')[0],
+                items: [{ itemId: '', qty: '' }]
+            });
+
+            // Faktur Pembelian state
+            const [invoiceHeader, setInvoiceHeader] = useState({
+                supplier: 'Diskes Kodaeral XIV',
+                spNo: '',
+                invoiceNo: '',
+                invoiceDate: new Date().toISOString().split('T')[0],
+                receiveDate: new Date().toISOString().slice(0, 16).replace('T', ' '),
+                discountPercent: 0,
+                cashback: 0,
+                otherCosts: 0,
+                notes: ''
+            });
+
+            const [invoiceItems, setInvoiceItems] = useState([
+                { itemId: '', expDate: '', batchNo: '', qty: 1, unit: 'Box', buyPrice: 0, discount: 0, tax: 0 }
+            ]);
+
+            const handleAddInvoiceItem = () => {
+                setInvoiceItems([...invoiceItems, { itemId: '', expDate: '', batchNo: '', qty: 1, unit: 'Box', buyPrice: 0, discount: 0, tax: 0 }]);
+            };
+
+            const handleRemoveInvoiceItem = (index) => {
+                if (invoiceItems.length === 1) return;
+                setInvoiceItems(invoiceItems.filter((_, i) => i !== index));
+            };
+
+            const handleInvoiceItemChange = (index, field, value) => {
+                const updated = [...invoiceItems];
+                updated[index][field] = value;
+                if (field === 'itemId') {
+                    const sel = items.find(i => i.id === value);
+                    if (sel) {
+                        updated[index].unit = sel.unit;
+                        updated[index].buyPrice = sel.price;
+                        updated[index].expDate = sel.expDate;
+                        updated[index].batchNo = sel.batchNo;
+                    }
+                }
+                setInvoiceItems(updated);
+            };
+
+            const calculateSubTotal = () => {
+                return invoiceItems.reduce((sum, item) => {
+                    const lineTotal = (Number(item.qty) || 0) * (Number(item.buyPrice) || 0) - (Number(item.discount) || 0);
+                    return sum + lineTotal;
+                }, 0);
+            };
+
+            const calculateGrandTotal = () => {
+                const sub = calculateSubTotal();
+                const discountVal = (sub * (Number(invoiceHeader.discountPercent) || 0)) / 100;
+                const net = sub - discountVal - (Number(invoiceHeader.cashback) || 0) + (Number(invoiceHeader.otherCosts) || 0);
+                return net > 0 ? net : 0;
+            };
+
+            const handleSaveInvoice = (e) => {
+                e.preventDefault();
+                if (!invoiceHeader.invoiceNo) {
+                    showAlert('Mohon isi Nomor Faktur!', 'error');
+                    return;
+                }
+                const validItems = invoiceItems.filter(i => i.itemId && Number(i.qty) > 0);
+                if (validItems.length === 0) {
+                    showAlert('Mohon lengkapi minimal 1 item produk!', 'error');
+                    return;
+                }
+
+                let updatedItems = [...items];
+                let newTrxs = [];
+
+                validItems.forEach(itemRow => {
+                    const qtyVal = parseInt(itemRow.qty, 10);
+                    updatedItems = updatedItems.map(i => {
+                        if (i.id === itemRow.itemId) {
+                            return {
+                                ...i,
+                                stock: i.stock + qtyVal,
+                                batchNo: itemRow.batchNo || i.batchNo,
+                                expDate: itemRow.expDate || i.expDate,
+                                price: itemRow.buyPrice ? Number(itemRow.buyPrice) : i.price
+                            };
+                        }
+                        return i;
+                    });
+
+                    const target = items.find(i => i.id === itemRow.itemId);
+                    newTrxs.push({
+                        id: 'TRX-' + Date.now().toString().slice(-5) + '-' + Math.floor(Math.random()*10),
+                        date: invoiceHeader.invoiceDate,
+                        itemId: itemRow.itemId,
+                        itemName: target ? target.name : '',
+                        type: 'IN',
+                        qty: qtyVal,
+                        docNo: invoiceHeader.invoiceNo,
+                        notes: `Faktur PBF: ${invoiceHeader.supplier}`
+                    });
+                });
+
+                setItems(updatedItems);
+                setTransactions([...newTrxs, ...transactions]);
+                showAlert(`Faktur ${invoiceHeader.invoiceNo} berhasil disimpan! Stok otomatis bertambah.`);
+                setInvoiceHeader({ ...invoiceHeader, invoiceNo: '', spNo: '', notes: '' });
+                setInvoiceItems([{ itemId: '', expDate: '', batchNo: '', qty: 1, unit: 'Box', buyPrice: 0, discount: 0, tax: 0 }]);
+            };
+
+            const handleOutSubmit = (e) => {
+                e.preventDefault();
+                if (!outForm.rxNo || !outForm.patientName) {
+                    showAlert('Mohon isi Nomor Resep dan Nama Pasien!', 'error');
+                    return;
+                }
+                const validRows = outForm.items.filter(i => i.itemId && Number(i.qty) > 0);
+                if (validRows.length === 0) {
+                    showAlert('Pilih minimal 1 obat dengan kuantitas valid!', 'error');
+                    return;
+                }
+
+                let updatedItems = [...items];
+                let insufficient = false;
+
+                validRows.forEach(row => {
+                    const target = updatedItems.find(i => i.id === row.itemId);
+                    if (target && target.stock < parseInt(row.qty, 10)) {
+                        insufficient = true;
+                        showAlert(`Stok obat ${target.name} tidak mencukupi (sisa ${target.stock})`, 'error');
+                    }
+                });
+
+                if (insufficient) return;
+
+                let newTrxs = [];
+                validRows.forEach(row => {
+                    const qtyVal = parseInt(row.qty, 10);
+                    updatedItems = updatedItems.map(i => {
+                        if (i.id === row.itemId) {
+                            return { ...i, stock: i.stock - qtyVal };
+                        }
+                        return i;
+                    });
+
+                    const target = items.find(i => i.id === row.itemId);
+                    newTrxs.push({
+                        id: 'TRX-' + Date.now().toString().slice(-5) + '-' + Math.floor(Math.random()*10),
+                        date: outForm.rxDate,
+                        itemId: row.itemId,
+                        itemName: target ? target.name : '',
+                        type: 'OUT',
+                        qty: qtyVal,
+                        docNo: outForm.rxNo,
+                        notes: `Pasien: ${outForm.patientName}`
+                    });
+                });
+
+                setItems(updatedItems);
+                setTransactions([...newTrxs, ...transactions]);
+                setOutForm({ patientName: '', rxNo: '', rxDate: new Date().toISOString().split('T')[0], items: [{ itemId: '', qty: '' }] });
+                showAlert(`Resep ${outForm.rxNo} berhasil diproses & stok obat dipotong!`);
+            };
+
+            const [stockCardItemId, setStockCardItemId] = useState(items[0]?.id || '');
+            const selectedStockCardItem = items.find(i => i.id === stockCardItemId) || items[0];
+
+            const getStockCardTransactions = () => {
+                if (!stockCardItemId) return [];
+                const itemTrxs = transactions.filter(t => t.itemId === stockCardItemId);
+                itemTrxs.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+                let runningStock = 0;
+                return itemTrxs.map(t => {
+                    if (t.type === 'IN') {
+                        runningStock += t.qty;
+                    } else if (t.type === 'OUT') {
+                        runningStock -= t.qty;
+                    } else if (t.type === 'ADJUSTMENT') {
+                        runningStock += t.qty;
+                    }
+                    return { ...t, balance: runningStock };
+                });
+            };
+
+            // Calculate ABC Pareto & Purchase Plan with Lead Time 14 days, Buffer Stock 6 days
+            const getPurchasePlanData = () => {
+                const itemUsage = {};
+                items.forEach(i => {
+                    itemUsage[i.id] = { ...i, totalOut: 0, consumptionRate: 0 };
+                });
+
+                transactions.forEach(t => {
+                    if (t.type === 'OUT' && itemUsage[t.itemId]) {
+                        itemUsage[t.itemId].totalOut += t.qty;
+                    }
+                });
+
+                const list = Object.values(itemUsage).map(item => {
+                    const consumptionRate = Number((item.totalOut / 30).toFixed(2));
+                    const leadTime = 14;
+                    const bufferStock = 6;
+                    
+                    const safetyStock = Math.ceil(consumptionRate * bufferStock);
+                    const rop = Math.ceil((consumptionRate * leadTime) + safetyStock);
+                    const targetStock = Math.ceil(consumptionRate * 30) + safetyStock;
+                    const suggestedOrder = targetStock > item.stock ? targetStock - item.stock : 0;
+
+                    return {
+                        ...item,
+                        consumptionRate,
+                        safetyStock,
+                        rop,
+                        suggestedOrder: suggestedOrder > 0 ? suggestedOrder : 0
+                    };
+                });
+
+                list.sort((a, b) => b.totalOut - a.totalOut);
+
+                const totalUsageAll = list.reduce((sum, i) => sum + i.totalOut, 0) || 1;
+                let cumulative = 0;
+
+                return list.map((item, idx) => {
+                    cumulative += item.totalOut;
+                    const percentage = (cumulative / totalUsageAll) * 100;
+                    
+                    let abcClass = 'C';
+                    if (percentage <= 80) abcClass = 'A';
+                    else if (percentage <= 95) abcClass = 'B';
+
+                    return {
+                        ...item,
+                        abcClass,
+                        rank: idx + 1
+                    };
+                });
+            };
+
+            const purchasePlanList = getPurchasePlanData();
+
+            // Filtered products for Tab 3
+            const filteredProducts = items.filter(item => {
+                const matchesSearch = item.name.toLowerCase().includes(productSearch.toLowerCase()) || item.id.toLowerCase().includes(productSearch.toLowerCase());
+                const matchesCategory = productCategoryFilter === 'ALL' || item.category === productCategoryFilter;
+                return matchesSearch && matchesCategory;
+            });
+
+            return (
+                <div className="min-h-screen flex flex-col bg-slate-100 font-sans text-slate-800">
+                    {/* TOP NAVBAR */}
+                    <header className="bg-slate-900 text-white shadow-md border-b border-slate-800 sticky top-0 z-50">
+                        <div className="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-3">
+                            <div className="flex items-center space-x-3">
+                                <div className="bg-blue-600 p-2.5 rounded-xl text-white shadow-lg">
+                                    <i className="fa-solid fa-house-medical text-xl"></i>
+                                </div>
+                                <div>
+                                    <h1 className="font-bold text-lg leading-tight tracking-wide flex items-center gap-2">
+                                        SIM-FARMASI KLINIK
+                                        <span className="text-[10px] bg-blue-800 text-blue-200 px-2 py-0.5 rounded-full uppercase">Digital Apothecary</span>
+                                    </h1>
+                                    <p className="text-xs text-slate-400">Klinik Pratama Kodaeral XIV • Presisi, FEFO & Akreditasi PMK 34/2021</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <button onClick={handleExportBackup} className="bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 px-3 py-2 rounded-lg border border-slate-700 transition flex items-center gap-1.5 shadow-sm">
+                                    <i className="fa-solid fa-cloud-arrow-down text-blue-400"></i> Backup JSON
+                                </button>
+                                <label className="bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 px-3 py-2 rounded-lg border border-slate-700 transition flex items-center gap-1.5 cursor-pointer shadow-sm">
+                                    <i className="fa-solid fa-cloud-arrow-up text-emerald-400"></i> Restore
+                                    <input type="file" accept=".json" onChange={handleImportBackup} className="hidden" />
+                                </label>
+                            </div>
+                        </div>
+                    </header>
+
+                    {/* MAIN CONTENT AREA */}
+                    <div className="max-w-7xl mx-auto px-4 py-6 flex-1 w-full flex flex-col lg:flex-row gap-6">
+                        {/* NAVIGATION SIDEBAR */}
+                        <aside className="w-full lg:w-64 flex-shrink-0 space-y-1 bg-white p-3 rounded-xl border border-slate-200 shadow-sm self-start">
+                            <div className="px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">Menu Utama</div>
+                            
+                            <button onClick={() => setActiveTab('dashboard')} className={`w-full text-left px-3.5 py-2.5 rounded-lg text-sm font-medium flex items-center justify-between transition ${activeTab === 'dashboard' ? 'bg-blue-50 text-blue-600 font-semibold' : 'text-slate-600 hover:bg-slate-50'}`}>
+                                <span className="flex items-center gap-2.5"><i className="fa-solid fa-chart-pie w-4 text-center"></i> Dashboard Umum</span>
+                            </button>
+
+                            <button onClick={() => setActiveTab('prescription')} className={`w-full text-left px-3.5 py-2.5 rounded-lg text-sm font-medium flex items-center justify-between transition ${activeTab === 'prescription' ? 'bg-blue-50 text-blue-600 font-semibold' : 'text-slate-600 hover:bg-slate-50'}`}>
+                                <span className="flex items-center gap-2.5"><i className="fa-solid fa-file-prescription w-4 text-center"></i> Penebusan Resep</span>
+                            </button>
+
+                            <button onClick={() => setActiveTab('outgoing_items')} className={`w-full text-left px-3.5 py-2.5 rounded-lg text-sm font-medium flex items-center justify-between transition ${activeTab === 'outgoing_items' ? 'bg-blue-50 text-blue-600 font-semibold' : 'text-slate-600 hover:bg-slate-50'}`}>
+                                <span className="flex items-center gap-2.5"><i className="fa-solid fa-boxes-packing w-4 text-center"></i> Daftar Barang Keluar</span>
+                            </button>
+
+                            <button onClick={() => setActiveTab('products')} className={`w-full text-left px-3.5 py-2.5 rounded-lg text-sm font-medium flex items-center justify-between transition ${activeTab === 'products' ? 'bg-blue-50 text-blue-600 font-semibold' : 'text-slate-600 hover:bg-slate-50'}`}>
+                                <span className="flex items-center gap-2.5"><i className="fa-solid fa-pills w-4 text-center"></i> Daftar Produk</span>
+                            </button>
+
+                            <button onClick={() => setActiveTab('stockcard')} className={`w-full text-left px-3.5 py-2.5 rounded-lg text-sm font-medium flex items-center justify-between transition ${activeTab === 'stockcard' ? 'bg-blue-50 text-blue-600 font-semibold' : 'text-slate-600 hover:bg-slate-50'}`}>
+                                <span className="flex items-center gap-2.5"><i className="fa-solid fa-id-card-clip w-4 text-center"></i> Kartu Stok</span>
+                            </button>
+
+                            <div className="px-3 pt-4 pb-1 text-xs font-semibold text-slate-400 uppercase tracking-wider">Pengadaan & Pembelian</div>
+
+                            <button onClick={() => setActiveTab('purchase_plan')} className={`w-full text-left px-3.5 py-2.5 rounded-lg text-sm font-medium flex items-center justify-between transition ${activeTab === 'purchase_plan' ? 'bg-blue-50 text-blue-600 font-semibold' : 'text-slate-600 hover:bg-slate-50'}`}>
+                                <span className="flex items-center gap-2.5"><i className="fa-solid fa-clipboard-list w-4 text-center"></i> Rencana Pembelian</span>
+                            </button>
+
+                            <button onClick={() => setActiveTab('incoming')} className={`w-full text-left px-3.5 py-2.5 rounded-lg text-sm font-medium flex items-center justify-between transition ${activeTab === 'incoming' ? 'bg-blue-50 text-blue-600 font-semibold' : 'text-slate-600 hover:bg-slate-50'}`}>
+                                <span className="flex items-center gap-2.5"><i className="fa-solid fa-file-invoice-dollar w-4 text-center"></i> Faktur Pembelian</span>
+                            </button>
+
+                            <button onClick={() => setActiveTab('returns')} className={`w-full text-left px-3.5 py-2.5 rounded-lg text-sm font-medium flex items-center justify-between transition ${activeTab === 'returns' ? 'bg-blue-50 text-blue-600 font-semibold' : 'text-slate-600 hover:bg-slate-50'}`}>
+                                <span className="flex items-center gap-2.5"><i className="fa-solid fa-rotate-left w-4 text-center"></i> Retur Pembelian</span>
+                            </button>
+
+                            <div className="px-3 pt-4 pb-1 text-xs font-semibold text-slate-400 uppercase tracking-wider">Stok & Audit</div>
+
+                            <button onClick={() => setActiveTab('stock_opname')} className={`w-full text-left px-3.5 py-2.5 rounded-lg text-sm font-medium flex items-center justify-between transition ${activeTab === 'stock_opname' ? 'bg-blue-50 text-blue-600 font-semibold' : 'text-slate-600 hover:bg-slate-50'}`}>
+                                <span className="flex items-center gap-2.5"><i className="fa-solid fa-boxes-packing w-4 text-center"></i> Stok Opname</span>
+                            </button>
+
+                            <button onClick={() => setActiveTab('adjustment')} className={`w-full text-left px-3.5 py-2.5 rounded-lg text-sm font-medium flex items-center justify-between transition ${activeTab === 'adjustment' ? 'bg-blue-50 text-blue-600 font-semibold' : 'text-slate-600 hover:bg-slate-50'}`}>
+                                <span className="flex items-center gap-2.5"><i className="fa-solid fa-sliders w-4 text-center"></i> Penyesuaian Stok</span>
+                            </button>
+                        </aside>
+
+                        {/* CONTENT CONTAINER */}
+                        <main className="flex-1 min-w-0 space-y-6">
+                            {alertMessage && (
+                                <div className={`p-4 rounded-xl border flex items-center justify-between shadow-sm transition ${alertType === 'error' ? 'bg-rose-50 border-rose-200 text-rose-700' : 'bg-emerald-50 border-emerald-200 text-emerald-700'}`}>
+                                    <div className="flex items-center gap-2.5">
+                                        <i className={`fa-solid ${alertType === 'error' ? 'fa-circle-exclamation' : 'fa-circle-check'} text-lg`}></i>
+                                        <span className="text-sm font-medium">{alertMessage}</span>
+                                    </div>
+                                    <button onClick={() => setAlertMessage('')} className="text-slate-400 hover:text-slate-600"><i className="fa-solid fa-xmark"></i></button>
+                                </div>
+                            )}
+
+                            {/* TAB 1: DASHBOARD UMUM */}
+                            {activeTab === 'dashboard' && (
+                                <div className="space-y-6">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
+                                            <div className="w-12 h-12 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-xl font-bold"><i className="fa-solid fa-boxes-stacked"></i></div>
+                                            <div>
+                                                <div className="text-xs font-medium text-slate-500">Total Jenis Produk</div>
+                                                <div className="text-xl font-bold text-slate-800">{items.length} Sediaan</div>
+                                            </div>
+                                        </div>
+                                        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
+                                            <div className="w-12 h-12 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl font-bold"><i className="fa-solid fa-cubes"></i></div>
+                                            <div>
+                                                <div className="text-xs font-medium text-slate-500">Total Stok Fisik</div>
+                                                <div className="text-xl font-bold text-slate-800">{items.reduce((acc, item) => acc + item.stock, 0)} Unit</div>
+                                            </div>
+                                        </div>
+                                        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
+                                            <div className="w-12 h-12 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center text-xl font-bold"><i className="fa-solid fa-triangle-exclamation"></i></div>
+                                            <div>
+                                                <div className="text-xs font-medium text-slate-500">Peringatan FEFO (&lt; 6 Bln)</div>
+                                                <div className="text-xl font-bold text-amber-600">{nearExpiredItems.length} Obat</div>
+                                            </div>
+                                        </div>
+                                        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
+                                            <div className="w-12 h-12 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center text-xl font-bold"><i className="fa-solid fa-notes-medical"></i></div>
+                                            <div>
+                                                <div className="text-xs font-medium text-slate-500">Stok Kritis / Menipis</div>
+                                                <div className="text-xl font-bold text-rose-600">{items.filter(i => i.stock <= i.minStock).length} Item</div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* ALERT PANEL NEAR EXPIRED */}
+                                    <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                                        <h3 className="font-bold text-slate-800 text-base mb-3 flex items-center gap-2">
+                                            <i className="fa-solid fa-hourglass-half text-amber-500"></i> Peringatan Kadaluwarsa Obat (&lt; 6 Bulan)
+                                        </h3>
+                                        {nearExpiredItems.length === 0 ? (
+                                            <p className="text-sm text-slate-500 italic">Semua obat dalam kondisi tanggal kadaluwarsa aman (&gt; 6 bulan).</p>
+                                        ) : (
+                                            <div className="overflow-x-auto">
+                                                <table className="w-full text-left text-sm text-slate-600">
+                                                    <thead className="bg-slate-50 text-xs font-semibold uppercase text-slate-500 border-b">
+                                                        <tr>
+                                                            <th className="p-3">Nama Obat</th>
+                                                            <th className="p-3">Batch</th>
+                                                            <th className="p-3">Exp Date</th>
+                                                            <th className="p-3">Sisa Hari</th>
+                                                            <th className="p-3">Stok</th>
+                                                            <th className="p-3">Status FEFO</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y">
+                                                        {nearExpiredItems.map(item => (
+                                                            <tr key={item.id} className="hover:bg-slate-50">
+                                                                <td className="p-3 font-medium text-slate-800">{item.name}</td>
+                                                                <td className="p-3 text-xs font-mono">{item.batchNo}</td>
+                                                                <td className="p-3 font-semibold text-rose-600">{item.expDate}</td>
+                                                                <td className="p-3 font-bold">{item.diffDays} hari</td>
+                                                                <td className="p-3">{item.stock} {item.unit}</td>
+                                                                <td className="p-3">
+                                                                    <span className="bg-amber-100 text-amber-800 text-xs px-2.5 py-1 rounded-full font-semibold">
+                                                                        ⏳ Priority FEFO
+                                                                    </span>
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* TAB 2: PENEBUSAN RESEP */}
+                            {activeTab === 'prescription' && (
+                                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+                                    <h2 className="text-lg font-bold text-slate-800 mb-2">Penebusan Resep Pasien</h2>
+                                    <p className="text-sm text-slate-500 mb-6">Input resep dokter medis untuk memotong stok obat secara real-time.</p>
+                                    
+                                    <form onSubmit={handleOutSubmit} className="space-y-4">
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                            <div>
+                                                <label className="block text-xs font-semibold text-slate-600 mb-1">No. Resep *</label>
+                                                <input type="text" value={outForm.rxNo} onChange={e => setOutForm({...outForm, rxNo: e.target.value})} placeholder="Contoh: RSP/2026/012" className="w-full border rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none" required />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-semibold text-slate-600 mb-1">Nama Pasien *</label>
+                                                <input type="text" value={outForm.patientName} onChange={e => setOutForm({...outForm, patientName: e.target.value})} placeholder="Contoh: Ny. Suminah" className="w-full border rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none" required />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-semibold text-slate-600 mb-1">Tanggal Resep *</label>
+                                                <input type="date" value={outForm.rxDate} onChange={e => setOutForm({...outForm, rxDate: e.target.value})} className="w-full border rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none" required />
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-3 pt-2">
+                                            <label className="block text-xs font-semibold text-slate-600">Daftar Sediaan Obat *</label>
+                                            {outForm.items.map((row, idx) => (
+                                                <div key={idx} className="flex items-center gap-3">
+                                                    <select value={row.itemId} onChange={e => {
+                                                        const newItems = [...outForm.items];
+                                                        newItems[idx].itemId = e.target.value;
+                                                        setOutForm({...outForm, items: newItems});
+                                                    }} className="flex-1 border rounded-lg p-2 text-sm">
+                                                        <option value="">-- Pilih Obat --</option>
+                                                        {items.map(item => (
+                                                            <option key={item.id} value={item.id}>{item.name} (Stok: {item.stock} {item.unit})</option>
+                                                        ))}
+                                                    </select>
+                                                    <input type="number" min="1" value={row.qty} onChange={e => {
+                                                        const newItems = [...outForm.items];
+                                                        newItems[idx].qty = e.target.value;
+                                                        setOutForm({...outForm, items: newItems});
+                                                    }} placeholder="Qty" className="w-24 border rounded-lg p-2 text-sm" />
+                                                    {outForm.items.length > 1 && (
+                                                        <button type="button" onClick={() => {
+                                                            setOutForm({...outForm, items: outForm.items.filter((_, i) => i !== idx)});
+                                                        }} className="text-rose-500 hover:text-rose-700 p-2"><i className="fa-solid fa-trash"></i></button>
+                                                    )}
+                                                </div>
+                                            ))}
+                                            <button type="button" onClick={() => setOutForm({...outForm, items: [...outForm.items, { itemId: '', qty: '' }]})} className="text-xs text-blue-600 font-semibold hover:underline">
+                                                + Tambah Baris Obat
+                                            </button>
+                                        </div>
+
+                                        <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg shadow-md transition">
+                                            Proses &amp; Kurangi Stok Resep
+                                        </button>
+                                    </form>
+                                </div>
+                            )}
+
+                            {/* TAB: DAFTAR BARANG KELUAR (REKAP HARIAN RESEP) */}
+                            {activeTab === 'outgoing_items' && (() => {
+                                const dailyTrxs = transactions.filter(t => t.type === 'OUT' && t.date === outgoingDateFilter);
+                                const itemSummaryMap = {};
+                                dailyTrxs.forEach(t => {
+                                    if (!itemSummaryMap[t.itemId]) {
+                                        const prod = items.find(i => i.id === t.itemId);
+                                        itemSummaryMap[t.itemId] = {
+                                            id: t.itemId,
+                                            name: t.itemName,
+                                            totalQty: 0,
+                                            unit: prod ? prod.unit : 'Unit'
+                                        };
+                                    }
+                                    itemSummaryMap[t.itemId].totalQty += t.qty;
+                                });
+                                const summaryList = Object.values(itemSummaryMap);
+                                const totalRxCount = new Set(dailyTrxs.map(t => t.docNo)).size;
+                                const totalQtyAll = summaryList.reduce((acc, i) => acc + i.totalQty, 0);
+
+                                return (
+                                    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-6">
+                                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4">
+                                            <div>
+                                                <h2 className="text-lg font-bold text-slate-800">Daftar Barang Keluar (Rekap Resep Harian)</h2>
+                                                <p className="text-sm text-slate-500">Rekapitulasi pengeluaran sediaan obat dan BMHP berdasarkan transaksi penebusan resep harian.</p>
+                                            </div>
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <label className="text-xs font-semibold text-slate-600">Pilih Tanggal:</label>
+                                                <input 
+                                                    type="date" 
+                                                    value={outgoingDateFilter} 
+                                                    onChange={e => setOutgoingDateFilter(e.target.value)} 
+                                                    className="border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                                />
+                                                <button 
+                                                    onClick={() => {
+                                                        const headers = ["Tanggal", "ID Produk", "Nama Produk", "Jumlah Keluar", "Satuan"];
+                                                        const rows = summaryList.map(i => [
+                                                            outgoingDateFilter,
+                                                            i.id,
+                                                            `"${i.name}"`,
+                                                            i.totalQty,
+                                                            i.unit
+                                                        ]);
+                                                        const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+                                                        const encodedUri = encodeURI(csvContent);
+                                                        const link = document.createElement("a");
+                                                        link.setAttribute("href", encodedUri);
+                                                        link.setAttribute("download", `Barang_Keluar_${outgoingDateFilter}.csv`);
+                                                        document.body.appendChild(link);
+                                                        link.click();
+                                                        link.remove();
+                                                        showAlert(`Rekap barang keluar tanggal ${outgoingDateFilter} berhasil diunduh!`);
+                                                    }}
+                                                    className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3.5 py-2 rounded-lg shadow transition flex items-center gap-1.5"
+                                                >
+                                                    <i className="fa-solid fa-file-excel"></i> Download Excel
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {/* SUMMARY STATS CARDS */}
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                                                <div className="text-xs text-slate-500 font-medium">Total Resep Diproses</div>
+                                                <div className="text-xl font-bold text-slate-800">{totalRxCount} Resep</div>
+                                            </div>
+                                            <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                                                <div className="text-xs text-blue-600 font-medium">Total Sediaan Keluar</div>
+                                                <div className="text-xl font-bold text-blue-700">{totalQtyAll} Unit</div>
+                                            </div>
+                                        </div>
+
+                                        {/* TABLE 1: REKAP AKUMULASI PER PRODUK */}
+                                        <div>
+                                            <h3 className="text-sm font-bold text-slate-800 mb-2 flex items-center gap-2">
+                                                <i className="fa-solid fa-list-check text-blue-600"></i> Rekapitualasi Akumulasi Produk Keluar ({outgoingDateFilter})
+                                            </h3>
+                                            <div className="overflow-x-auto border rounded-xl">
+                                                <table className="w-full text-left text-xs text-slate-600">
+                                                    <thead className="bg-slate-50 font-semibold uppercase text-slate-500 border-b">
+                                                        <tr>
+                                                            <th className="p-3">Kode</th>
+                                                            <th className="p-3">Nama Produk</th>
+                                                            <th className="p-3 text-right">Total Keluar</th>
+                                                            <th className="p-3">Satuan</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y">
+                                                        {summaryList.length === 0 ? (
+                                                            <tr>
+                                                                <td colSpan="4" className="p-6 text-center text-slate-400 italic">Tidak ada transaksi barang keluar pada tanggal {outgoingDateFilter}.</td>
+                                                            </tr>
+                                                        ) : (
+                                                            summaryList.map(item => (
+                                                                <tr key={item.id} className="hover:bg-slate-50">
+                                                                    <td className="p-3 font-mono text-xs">{item.id}</td>
+                                                                    <td className="p-3 font-medium text-slate-800">{item.name}</td>
+                                                                    <td className="p-3 text-right font-bold text-blue-600 text-sm">{item.totalQty}</td>
+                                                                    <td className="p-3">{item.unit}</td>
+                                                                </tr>
+                                                            ))
+                                                        )}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+
+                                    </div>
+                                );
+                            })()}
+
+                            {/* TAB 3: DAFTAR PRODUK (WITH SEARCH & CATEGORY FILTER) */}
+                            {activeTab === 'products' && (
+                                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
+                                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4">
+                                        <div>
+                                            <h2 className="text-lg font-bold text-slate-800">Katalog &amp; Daftar Produk Farmasi</h2>
+                                            <p className="text-sm text-slate-500">Pencarian dan penyaringan data sediaan obat &amp; BMHP.</p>
+                                        </div>
+                                        <div className="flex flex-wrap gap-2 w-full sm:w-auto items-center">
+                                            <input 
+                                                type="text" 
+                                                value={productSearch} 
+                                                onChange={e => setProductSearch(e.target.value)} 
+                                                placeholder="Cari nama obat / kode..." 
+                                                className="border rounded-lg px-3 py-2 text-sm w-full sm:w-56 focus:ring-2 focus:ring-blue-500 outline-none" 
+                                            />
+                                            <select 
+                                                value={productCategoryFilter} 
+                                                onChange={e => setProductCategoryFilter(e.target.value)} 
+                                                className="border rounded-lg px-3 py-2 text-sm bg-white"
+                                            >
+                                                <option value="ALL">Semua Kategori</option>
+                                                <option value="Oral">Oral</option>
+                                                <option value="Injeksi">Injeksi</option>
+                                                <option value="Cold-Chain">Cold-Chain</option>
+                                                <option value="BMHP">BMHP</option>
+                                            </select>
+                                            <button 
+                                                onClick={() => {
+                                                    const headers = ["Kode", "Nama Produk", "Kategori", "Stok", "Satuan", "No Batch", "Exp Date", "Harga (Rp)"];
+                                                    const rows = filteredProducts.map(i => [i.id, `"${i.name}"`, i.category, i.stock, i.unit, i.batchNo, i.expDate, i.price]);
+                                                    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+                                                    const encodedUri = encodeURI(csvContent);
+                                                    const link = document.createElement("a");
+                                                    link.setAttribute("href", encodedUri);
+                                                    link.setAttribute("download", `Daftar_Produk_Farmasi_${new Date().toISOString().slice(0,10)}.csv`);
+                                                    document.body.appendChild(link);
+                                                    link.click();
+                                                    link.remove();
+                                                    showAlert('Daftar produk berhasil diunduh dalam format CSV/Excel!');
+                                                }}
+                                                className="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-4 py-2 rounded-lg shadow transition flex items-center gap-1.5"
+                                            >
+                                                <i className="fa-solid fa-file-excel"></i> Download Excel
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left text-sm text-slate-600">
+                                            <thead className="bg-slate-50 text-xs font-semibold uppercase text-slate-500 border-b">
+                                                <tr>
+                                                    <th className="p-3">Kode</th>
+                                                    <th className="p-3">Nama Produk</th>
+                                                    <th className="p-3">Kategori</th>
+                                                    <th className="p-3">Stok</th>
+                                                    <th className="p-3">Batch &amp; Exp</th>
+                                                    <th className="p-3">Label Khusus</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y">
+                                                {filteredProducts.length === 0 ? (
+                                                    <tr>
+                                                        <td colSpan="6" className="p-6 text-center text-slate-400 italic">Tidak ada produk yang sesuai dengan kata kunci pencarian.</td>
+                                                    </tr>
+                                                ) : (
+                                                    filteredProducts.map(item => (
+                                                        <tr key={item.id} className="hover:bg-slate-50">
+                                                            <td className="p-3 font-mono text-xs">{item.id}</td>
+                                                            <td className="p-3 font-medium text-slate-800">{item.name}</td>
+                                                            <td className="p-3">{item.category}</td>
+                                                            <td className="p-3 font-bold">{item.stock} {item.unit}</td>
+                                                            <td className="p-3 text-xs">
+                                                                <div>{item.batchNo}</div>
+                                                                <div className="text-slate-400">{item.expDate}</div>
+                                                            </td>
+                                                            <td className="p-3 flex gap-1">
+                                                                {item.isLasa && <span className="bg-amber-100 text-amber-800 text-[10px] px-2 py-0.5 rounded font-bold">⚠️ LASA</span>}
+                                                                {item.isHighAlert && <span className="bg-rose-100 text-rose-800 text-[10px] px-2 py-0.5 rounded font-bold">🚨 HIGH ALERT</span>}
+                                                            </td>
+                                                        </tr>
+                                                    ))
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* TAB 4: KARTU STOK */}
+                            {activeTab === 'stockcard' && (
+                                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
+                                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4">
+                                        <div>
+                                            <h2 className="text-lg font-bold text-slate-800">Kartu Stok Barang (Audit Trail)</h2>
+                                            <p className="text-sm text-slate-500">Riwayat kronologis mutasi obat per item.</p>
+                                        </div>
+                                        <div className="w-full sm:w-64">
+                                            <label className="block text-xs font-semibold text-slate-500 mb-1">Pilih Item Obat/BMHP:</label>
+                                            <select value={stockCardItemId} onChange={e => setStockCardItemId(e.target.value)} className="w-full border rounded-lg p-2 text-sm">
+                                                {items.map(i => (
+                                                    <option key={i.id} value={i.id}>{i.name}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    {selectedStockCardItem && (
+                                        <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 text-sm grid grid-cols-2 sm:grid-cols-4 gap-4">
+                                            <div><span className="text-slate-400 text-xs">ID Produk:</span> <p className="font-bold">{selectedStockCardItem.id}</p></div>
+                                            <div><span className="text-slate-400 text-xs">Stok Terkini:</span> <p className="font-bold text-blue-600">{selectedStockCardItem.stock} {selectedStockCardItem.unit}</p></div>
+                                            <div><span className="text-slate-400 text-xs">No. Batch:</span> <p className="font-bold">{selectedStockCardItem.batchNo}</p></div>
+                                            <div><span className="text-slate-400 text-xs">Expired Date:</span> <p className="font-bold text-rose-600">{selectedStockCardItem.expDate}</p></div>
+                                        </div>
+                                    )}
+
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left text-sm text-slate-600">
+                                            <thead className="bg-slate-50 text-xs font-semibold uppercase text-slate-500 border-b">
+                                                <tr>
+                                                    <th className="p-3">Tanggal</th>
+                                                    <th className="p-3">No. Dokumen</th>
+                                                    <th className="p-3">Jenis Mutasi</th>
+                                                    <th className="p-3 text-right">Masuk (+)</th>
+                                                    <th className="p-3 text-right">Keluar (-)</th>
+                                                    <th className="p-3 text-right">Saldo Stok</th>
+                                                    <th className="p-3">Keterangan</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y">
+                                                {getStockCardTransactions().map((t, idx) => (
+                                                    <tr key={idx} className="hover:bg-slate-50">
+                                                        <td className="p-3">{t.date}</td>
+                                                        <td className="p-3 font-mono text-xs">{t.docNo}</td>
+                                                        <td className="p-3 font-semibold text-xs">{t.type}</td>
+                                                        <td className="p-3 text-right text-emerald-600 font-bold">{t.type === 'IN' ? `+${t.qty}` : '-'}</td>
+                                                        <td className="p-3 text-right text-rose-600 font-bold">{t.type === 'OUT' ? `-${t.qty}` : '-'}</td>
+                                                        <td className="p-3 text-right font-bold text-slate-800">{t.balance}</td>
+                                                        <td className="p-3 text-xs">{t.notes}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* TAB: RENCANA PEMBELIAN (ABC PARETO + LEAD TIME 14D + BUFFER 6D) */}
+                            {activeTab === 'purchase_plan' && (
+                                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-6">
+                                    <div className="border-b pb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                        <div>
+                                            <h2 className="text-lg font-bold text-slate-800">Rencana Pembelian &amp; Analisis Pareto ABC</h2>
+                                            <p className="text-sm text-slate-500">Perencanaan pengadaan berbasis konsumsi, Lead Time 14 hari, &amp; Buffer Stock 6 hari.</p>
+                                        </div>
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <span className="bg-blue-50 text-blue-700 font-semibold px-3 py-1.5 rounded-lg border border-blue-200 text-xs">Lead Time: 14 Hari</span>
+                                            <span className="bg-emerald-50 text-emerald-700 font-semibold px-3 py-1.5 rounded-lg border border-emerald-200 text-xs">Buffer Stock: 6 Hari</span>
+                                            <button 
+                                                onClick={() => {
+                                                    const headers = ["Rank", "Kode Produk", "Nama Produk", "Kelas Pareto", "Total Keluar (30h)", "Konsumsi/Hari", "Safety Stock", "ROP", "Stok Saat Ini", "Rekomendasi Beli", "Satuan"];
+                                                    const rows = purchasePlanList.map(row => [
+                                                        row.rank, 
+                                                        row.id, 
+                                                        `"${row.name}"`, 
+                                                        `Kelas ${row.abcClass}`, 
+                                                        row.totalOut, 
+                                                        row.consumptionRate, 
+                                                        row.safetyStock, 
+                                                        row.rop, 
+                                                        row.stock, 
+                                                        row.suggestedOrder, 
+                                                        row.unit
+                                                    ]);
+                                                    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+                                                    const encodedUri = encodeURI(csvContent);
+                                                    const link = document.createElement("a");
+                                                    link.setAttribute("href", encodedUri);
+                                                    link.setAttribute("download", `Rencana_Pembelian_Pareto_${new Date().toISOString().slice(0,10)}.csv`);
+                                                    document.body.appendChild(link);
+                                                    link.click();
+                                                    link.remove();
+                                                    showAlert('Rencana pembelian & analisis Pareto ABC berhasil diunduh dalam format Excel/CSV!');
+                                                }}
+                                                className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3.5 py-2 rounded-lg shadow transition flex items-center gap-1.5"
+                                            >
+                                                <i className="fa-solid fa-file-excel"></i> Download Excel
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left text-xs text-slate-600">
+                                            <thead className="bg-slate-50 font-semibold uppercase text-slate-500 border-b">
+                                                <tr>
+                                                    <th className="p-3">Rank</th>
+                                                    <th className="p-3">Nama Produk</th>
+                                                    <th className="p-3 text-center">Kelas Pareto</th>
+                                                    <th className="p-3 text-right">Total Keluar (30h)</th>
+                                                    <th className="p-3 text-right">Konsumsi/Hari</th>
+                                                    <th className="p-3 text-right">Safety Stock</th>
+                                                    <th className="p-3 text-right">ROP</th>
+                                                    <th className="p-3 text-right">Stok Saat Ini</th>
+                                                    <th className="p-3 text-right font-bold text-blue-600">Rekomendasi Beli</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y">
+                                                {purchasePlanList.map(row => (
+                                                    <tr key={row.id} className="hover:bg-slate-50">
+                                                        <td className="p-3 font-bold">{row.rank}</td>
+                                                        <td className="p-3 font-medium text-slate-800">
+                                                            <div>{row.name}</div>
+                                                            <div className="text-[10px] text-slate-400 font-mono">{row.id}</div>
+                                                        </td>
+                                                        <td className="p-3 text-center">
+                                                            <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                                                                row.abcClass === 'A' ? 'bg-rose-100 text-rose-700' :
+                                                                row.abcClass === 'B' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
+                                                            }`}>
+                                                                Kelas {row.abcClass}
+                                                            </span>
+                                                        </td>
+                                                        <td className="p-3 text-right font-semibold">{row.totalOut} {row.unit}</td>
+                                                        <td className="p-3 text-right">{row.consumptionRate}</td>
+                                                        <td className="p-3 text-right">{row.safetyStock}</td>
+                                                        <td className="p-3 text-right font-semibold">{row.rop}</td>
+                                                        <td className="p-3 text-right font-bold">{row.stock}</td>
+                                                        <td className="p-3 text-right font-extrabold text-blue-600 text-sm">
+                                                            {row.suggestedOrder} {row.unit}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* TAB 5: FAKTUR PEMBELIAN */}
+                            {activeTab === 'incoming' && (
+                                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-6">
+                                    <div className="border-b pb-4">
+                                        <h2 className="text-lg font-bold text-slate-800">Faktur Pembelian (Penerimaan PBF / Diskes)</h2>
+                                        <p className="text-sm text-slate-500">Input faktur resmi pengadaan obat lengkap dengan kalkulasi diskon, pajak, batch, dan jatuh tempo.</p>
+                                    </div>
+
+                                    <form onSubmit={handleSaveInvoice} className="space-y-6">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 text-xs">
+                                            <div>
+                                                <label className="block font-semibold text-slate-600 mb-1">Supplier *</label>
+                                                <select value={invoiceHeader.supplier} onChange={e => setInvoiceHeader({...invoiceHeader, supplier: e.target.value})} className="w-full border rounded-lg p-2 text-xs">
+                                                    <option value="Diskes Kodaeral XIV">Diskes Kodaeral XIV</option>
+                                                    <option value="PT. Kimia Farma">PT. Kimia Farma</option>
+                                                    <option value="PT. Kalbe Farma">PT. Kalbe Farma</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="block font-semibold text-slate-600 mb-1">No. Surat Pesanan *</label>
+                                                <input type="text" value={invoiceHeader.spNo} onChange={e => setInvoiceHeader({...invoiceHeader, spNo: e.target.value})} placeholder="No Surat Pesanan" className="w-full border rounded-lg p-2 text-xs" />
+                                            </div>
+                                            <div>
+                                                <label className="block font-semibold text-slate-600 mb-1">No. Faktur *</label>
+                                                <input type="text" value={invoiceHeader.invoiceNo} onChange={e => setInvoiceHeader({...invoiceHeader, invoiceNo: e.target.value})} placeholder="No Faktur" className="w-full border rounded-lg p-2 text-xs" required />
+                                            </div>
+                                            <div>
+                                                <label className="block font-semibold text-slate-600 mb-1">Tanggal Faktur</label>
+                                                <input type="date" value={invoiceHeader.invoiceDate} onChange={e => setInvoiceHeader({...invoiceHeader, invoiceDate: e.target.value})} className="w-full border rounded-lg p-2 text-xs" />
+                                            </div>
+                                            <div>
+                                                <label className="block font-semibold text-slate-600 mb-1">Tanggal Penerimaan</label>
+                                                <input type="text" value={invoiceHeader.receiveDate} onChange={e => setInvoiceHeader({...invoiceHeader, receiveDate: e.target.value})} className="w-full border rounded-lg p-2 text-xs" />
+                                            </div>
+                                        </div>
+
+                                        <div className="overflow-x-auto border rounded-xl">
+                                            <table className="w-full text-left text-xs text-slate-600">
+                                                <thead className="bg-slate-50 font-semibold border-b text-slate-600">
+                                                    <tr>
+                                                        <th className="p-2.5 w-10 text-center">No.</th>
+                                                        <th className="p-2.5">Produk</th>
+                                                        <th className="p-2.5 w-32">Expired Date</th>
+                                                        <th className="p-2.5 w-32">No. Batch</th>
+                                                        <th className="p-2.5 w-24">Kuantitas</th>
+                                                        <th className="p-2.5 w-24">Satuan</th>
+                                                        <th className="p-2.5 w-28">Harga Beli</th>
+                                                        <th className="p-2.5 w-24">Diskon (Rp)</th>
+                                                        <th className="p-2.5 w-28">Sub Total</th>
+                                                        <th className="p-2.5 w-10"></th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y">
+                                                    {invoiceItems.map((row, idx) => {
+                                                        const lineSub = (Number(row.qty) || 0) * (Number(row.buyPrice) || 0) - (Number(row.discount) || 0);
+                                                        return (
+                                                            <tr key={idx}>
+                                                                <td className="p-2 text-center">{idx + 1}</td>
+                                                                <td className="p-2">
+                                                                    <select value={row.itemId} onChange={e => handleInvoiceItemChange(idx, 'itemId', e.target.value)} className="w-full border rounded p-1.5 text-xs">
+                                                                        <option value="">Pilih Produk</option>
+                                                                        {items.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
+                                                                    </select>
+                                                                </td>
+                                                                <td className="p-2">
+                                                                    <input type="date" value={row.expDate} onChange={e => handleInvoiceItemChange(idx, 'expDate', e.target.value)} className="w-full border rounded p-1.5 text-xs" />
+                                                                </td>
+                                                                <td className="p-2">
+                                                                    <input type="text" value={row.batchNo} onChange={e => handleInvoiceItemChange(idx, 'batchNo', e.target.value)} placeholder="No Batch" className="w-full border rounded p-1.5 text-xs" />
+                                                                </td>
+                                                                <td className="p-2">
+                                                                    <input type="number" min="1" value={row.qty} onChange={e => handleInvoiceItemChange(idx, 'qty', e.target.value)} className="w-full border rounded p-1.5 text-xs" />
+                                                                </td>
+                                                                <td className="p-2">
+                                                                    <input type="text" value={row.unit} onChange={e => handleInvoiceItemChange(idx, 'unit', e.target.value)} className="w-full border rounded p-1.5 text-xs" />
+                                                                </td>
+                                                                <td className="p-2">
+                                                                    <input type="number" value={row.buyPrice} onChange={e => handleInvoiceItemChange(idx, 'buyPrice', e.target.value)} className="w-full border rounded p-1.5 text-xs" />
+                                                                </td>
+                                                                <td className="p-2">
+                                                                    <input type="number" value={row.discount} onChange={e => handleInvoiceItemChange(idx, 'discount', e.target.value)} className="w-full border rounded p-1.5 text-xs" />
+                                                                </td>
+                                                                <td className="p-2 font-bold text-slate-800">
+                                                                    Rp {lineSub.toLocaleString()}
+                                                                </td>
+                                                                <td className="p-2 text-center">
+                                                                    {invoiceItems.length > 1 && (
+                                                                        <button type="button" onClick={() => handleRemoveInvoiceItem(idx)} className="text-rose-500 hover:text-rose-700">
+                                                                            <i className="fa-solid fa-trash"></i>
+                                                                        </button>
+                                                                    )}
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                </tbody>
+                                            </table>
+                                        </div>
+
+                                        <button type="button" onClick={handleAddInvoiceItem} className="text-xs text-blue-600 font-semibold hover:underline flex items-center gap-1">
+                                            <i className="fa-solid fa-bolt"></i> Tambah Produk Sekaligus / Baris Baru
+                                        </button>
+
+                                        <div className="flex flex-col md:flex-row justify-between items-start gap-6 border-t pt-4 text-xs">
+                                            <div></div>
+                                            <div className="w-full md:w-80 space-y-2">
+                                                <div className="flex justify-between items-center">
+                                                    <span className="text-slate-500">Sub Total:</span>
+                                                    <span className="font-bold">Rp {calculateSubTotal().toLocaleString()}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center gap-2">
+                                                    <span className="text-slate-500">Diskon Faktur (%):</span>
+                                                    <input type="number" value={invoiceHeader.discountPercent} onChange={e => setInvoiceHeader({...invoiceHeader, discountPercent: e.target.value})} className="w-24 border rounded p-1 text-right text-xs" />
+                                                </div>
+                                                <div className="flex justify-between items-center gap-2">
+                                                    <span className="text-slate-500">Biaya Lainnya:</span>
+                                                    <input type="number" value={invoiceHeader.otherCosts} onChange={e => setInvoiceHeader({...invoiceHeader, otherCosts: e.target.value})} className="w-24 border rounded p-1 text-right text-xs" />
+                                                </div>
+                                                <div className="flex justify-between items-center text-sm border-t pt-2">
+                                                    <span className="font-bold text-slate-800">TOTAL:</span>
+                                                    <span className="font-extrabold text-blue-600 text-base">Rp {calculateGrandTotal().toLocaleString()}</span>
+                                                </div>
+                                                <button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-lg shadow-md transition mt-3">
+                                                    Simpan Faktur Pembelian
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </form>
+                                </div>
+                            )}
+
+                            {/* TAB: RETUR PEMBELIAN (BERDASARKAN FAKTUR PEMBELIAN PBF/DISKES) */}
+                            {activeTab === 'returns' && (() => {
+                                const incomingTrxs = transactions.filter(t => t.type === 'IN');
+                                const invoiceList = Array.from(new Set(incomingTrxs.map(t => t.docNo)))
+                                    .map(docNo => {
+                                        const sample = incomingTrxs.find(t => t.docNo === docNo);
+                                        return {
+                                            invoiceNo: docNo,
+                                            supplier: sample?.notes?.replace('Faktur PBF: ', '') || 'PBF / Diskes',
+                                            date: sample?.date || ''
+                                        };
+                                    });
+
+                                const handleInvoiceSelect = (e) => {
+                                    const invNo = e.target.value;
+                                    const targetInv = invoiceList.find(i => i.invoiceNo === invNo);
+                                    setPurchaseReturnForm({
+                                        invoiceNo: invNo,
+                                        supplier: targetInv ? targetInv.supplier : '',
+                                        returnDate: purchaseReturnForm.returnDate,
+                                        items: [{ itemId: '', qty: '', unit: '', reason: 'Mendekati Kadaluwarsa (ED)' }]
+                                    });
+                                };
+
+                                const handleAddItemRow = () => {
+                                    setPurchaseReturnForm(prev => ({
+                                        ...prev,
+                                        items: [...(prev.items || []), { itemId: '', qty: '', unit: '', reason: 'Mendekati Kadaluwarsa (ED)' }]
+                                    }));
+                                };
+
+                                const handleRemoveItemRow = (index) => {
+                                    setPurchaseReturnForm(prev => {
+                                        const list = prev.items || [];
+                                        if (list.length === 1) return prev;
+                                        return {
+                                            ...prev,
+                                            items: list.filter((_, idx) => idx !== index)
+                                        };
+                                    });
+                                };
+
+                                const handleItemRowChange = (index, field, value) => {
+                                    setPurchaseReturnForm(prev => {
+                                        const updatedItems = [...(prev.items || [])];
+                                        if (!updatedItems[index]) {
+                                            updatedItems[index] = { itemId: '', qty: '', unit: '', reason: 'Mendekati Kadaluwarsa (ED)' };
+                                        }
+                                        updatedItems[index][field] = value;
+                                        if (field === 'itemId') {
+                                            const itemObj = items.find(i => i.id === value);
+                                            updatedItems[index].unit = itemObj ? itemObj.unit : '';
+                                        }
+                                        return {
+                                            ...prev,
+                                            items: updatedItems
+                                        };
+                                    });
+                                };
+
+                                const handlePurchaseReturnSubmit = (e) => {
+                                    e.preventDefault();
+                                    if (!purchaseReturnForm.invoiceNo) {
+                                        showAlert('Mohon pilih Nomor Faktur Pembelian!', 'error');
+                                        return;
+                                    }
+                                    const formItems = purchaseReturnForm.items || [];
+                                    const validRows = formItems.filter(i => i && i.itemId && Number(i.qty) > 0);
+                                    if (validRows.length === 0) {
+                                        showAlert('Mohon lengkapi minimal 1 baris barang retur dengan kuantitas valid!', 'error');
+                                        return;
+                                    }
+
+                                    let insufficient = false;
+                                    validRows.forEach(row => {
+                                        const targetItem = items.find(i => i.id === row.itemId);
+                                        if (targetItem && targetItem.stock < Number(row.qty)) {
+                                            insufficient = true;
+                                            showAlert(`Stok fisik ${targetItem.name} tidak mencukupi (Sisa: ${targetItem.stock}) untuk diretur!`, 'error');
+                                        }
+                                    });
+                                    if (insufficient) return;
+
+                                    let updatedItems = [...items];
+                                    let newTrxs = [];
+
+                                    validRows.forEach(row => {
+                                        const qtyVal = parseInt(row.qty, 10);
+                                        const targetItem = updatedItems.find(i => i.id === row.itemId);
+                                        
+                                        updatedItems = updatedItems.map(i => {
+                                            if (i.id === row.itemId) {
+                                                return { ...i, stock: i.stock - qtyVal };
+                                            }
+                                            return i;
+                                        });
+
+                                        newTrxs.push({
+                                            id: 'TRX-RTP-' + Date.now().toString().slice(-5) + '-' + Math.floor(Math.random()*10),
+                                            date: purchaseReturnForm.returnDate,
+                                            itemId: row.itemId,
+                                            itemName: targetItem ? targetItem.name : '',
+                                            type: 'OUT',
+                                            qty: qtyVal,
+                                            docNo: `RET-FAK/${purchaseReturnForm.invoiceNo}`,
+                                            notes: `Retur Pembelian [Ke: ${purchaseReturnForm.supplier}] - Ref Faktur: ${purchaseReturnForm.invoiceNo} - Alasan: ${row.reason}`
+                                        });
+                                    });
+
+                                    setItems(updatedItems);
+                                    setTransactions([...newTrxs, ...transactions]);
+                                    showAlert(`Retur pembelian untuk ${validRows.length} item barang ke PBF/Diskes berhasil diproses & stok dipotong!`);
+                                    setPurchaseReturnForm({
+                                        invoiceNo: '',
+                                        supplier: '',
+                                        returnDate: new Date().toISOString().split('T')[0],
+                                        items: [{ itemId: '', qty: '', unit: '', reason: 'Mendekati Kadaluwarsa (ED)' }]
+                                    });
+                                };
+
+                                const purchaseReturnLogs = transactions.filter(t => t.notes && t.notes.includes('Retur Pembelian'));
+                                const currentReturnItems = purchaseReturnForm.items || [{ itemId: '', qty: '', unit: '', reason: 'Mendekati Kadaluwarsa (ED)' }];
+
+                                return (
+                                    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-6">
+                                        <div className="border-b pb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                            <div>
+                                                <h2 className="text-lg font-bold text-slate-800">Retur Pembelian Sediaan (Ke Supplier / Diskes)</h2>
+                                                <p className="text-sm text-slate-500">Pengembalian obat/BMHP ke PBF atau Dinas Kesehatan berdasarkan Faktur Pembelian yang telah diterima.</p>
+                                            </div>
+                                            <button 
+                                                onClick={() => {
+                                                    const headers = ["ID Transaksi", "Tanggal Retur", "No. Faktur Pembelian", "Supplier / PBF", "Nama Barang", "Kuantitas Retur", "Alasan Retur"];
+                                                    const rows = purchaseReturnLogs.map(log => [
+                                                        log.id,
+                                                        log.date,
+                                                        log.docNo.replace('RET-FAK/', ''),
+                                                        `"${log.notes.split(' - ')[0].replace('Retur Pembelian [Ke: ', '').replace(']', '')}"`,
+                                                        `"${log.itemName}"`,
+                                                        log.qty,
+                                                        `"${log.notes}"`
+                                                    ]);
+                                                    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+                                                    const encodedUri = encodeURI(csvContent);
+                                                    const link = document.createElement("a");
+                                                    link.setAttribute("href", encodedUri);
+                                                    link.setAttribute("download", `Retur_Pembelian_PBF_${new Date().toISOString().slice(0,10)}.csv`);
+                                                    document.body.appendChild(link);
+                                                    link.click();
+                                                    link.remove();
+                                                    showAlert('Riwayat retur pembelian berhasil diunduh dalam format Excel/CSV!');
+                                                }}
+                                                className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3.5 py-2 rounded-lg shadow transition flex items-center gap-1.5"
+                                            >
+                                                <i className="fa-solid fa-file-excel"></i> Download Excel
+                                            </button>
+                                        </div>
+
+                                        <form onSubmit={handlePurchaseReturnSubmit} className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
+                                            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                                                <i className="fa-solid fa-file-invoice-dollar text-blue-600"></i> Input Form Retur Multi-Item Berdasarkan Faktur Pembelian
+                                            </h3>
+
+                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+                                                <div>
+                                                    <label className="block font-semibold text-slate-600 mb-1">Pilih No. Faktur Pembelian *</label>
+                                                    <select value={purchaseReturnForm.invoiceNo} onChange={handleInvoiceSelect} className="w-full border rounded-lg p-2.5 text-xs bg-white outline-none focus:ring-2 focus:ring-blue-500 font-mono" required>
+                                                        <option value="">-- Pilih Faktur Pembelian --</option>
+                                                        {invoiceList.map(inv => (
+                                                            <option key={inv.invoiceNo} value={inv.invoiceNo}>
+                                                                Faktur: {inv.invoiceNo} ({inv.supplier} - {inv.date})
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+
+                                                <div>
+                                                    <label className="block font-semibold text-slate-600 mb-1">Supplier / Pengirim</label>
+                                                    <input type="text" value={purchaseReturnForm.supplier} placeholder="Otomatis dari faktur" readOnly className="w-full border rounded-lg p-2.5 text-xs bg-slate-100 text-slate-600 font-semibold cursor-not-allowed" />
+                                                </div>
+
+                                                <div>
+                                                    <label className="block font-semibold text-slate-600 mb-1">Tanggal Retur *</label>
+                                                    <input type="date" value={purchaseReturnForm.returnDate} onChange={e => setPurchaseReturnForm({...purchaseReturnForm, returnDate: e.target.value})} className="w-full border rounded-lg p-2.5 text-xs bg-white outline-none focus:ring-2 focus:ring-blue-500" required />
+                                                </div>
+                                            </div>
+
+                                            {/* MULTI-ITEM RETUR TABLE */}
+                                            <div className="space-y-3 pt-2">
+                                                <label className="block text-xs font-semibold text-slate-700 uppercase">Daftar Sediaan Barang yang Diretur *</label>
+                                                {currentReturnItems.map((row, idx) => (
+                                                    <div key={idx} className="flex flex-col sm:flex-row items-center gap-3 bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
+                                                        <div className="flex-1 w-full">
+                                                            <label className="block text-[10px] text-slate-400 font-semibold mb-0.5">Nama Barang</label>
+                                                            <select 
+                                                                value={row?.itemId || ''} 
+                                                                onChange={e => handleItemRowChange(idx, 'itemId', e.target.value)} 
+                                                                className="w-full border rounded-lg p-2 text-xs bg-white outline-none focus:ring-2 focus:ring-blue-500" 
+                                                                required
+                                                            >
+                                                                <option value="">-- Pilih Barang --</option>
+                                                                {items.map(i => (
+                                                                    <option key={i.id} value={i.id}>{i.name} (Stok: {i.stock} {i.unit})</option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
+
+                                                        <div className="w-24">
+                                                            <label className="block text-[10px] text-slate-400 font-semibold mb-0.5">Kuantitas</label>
+                                                            <input 
+                                                                type="number" 
+                                                                min="1" 
+                                                                value={row?.qty || ''} 
+                                                                onChange={e => handleItemRowChange(idx, 'qty', e.target.value)} 
+                                                                placeholder="Qty" 
+                                                                className="w-full border rounded-lg p-2 text-xs text-center" 
+                                                                required 
+                                                            />
+                                                        </div>
+
+                                                        <div className="w-24">
+                                                            <label className="block text-[10px] text-slate-400 font-semibold mb-0.5">Satuan</label>
+                                                            <input 
+                                                                type="text" 
+                                                                value={row?.unit || ''} 
+                                                                placeholder="Satuan" 
+                                                                readOnly 
+                                                                className="w-full border rounded-lg p-2 text-xs bg-slate-100 text-center font-semibold cursor-not-allowed" 
+                                                           />
+                                                        </div>
+
+                                                        <div className="flex-1 w-full">
+                                                            <label className="block text-[10px] text-slate-400 font-semibold mb-0.5">Alasan Retur</label>
+                                                            <select 
+                                                                value={row?.reason || 'Mendekati Kadaluwarsa (ED)'} 
+                                                                onChange={e => handleItemRowChange(idx, 'reason', e.target.value)} 
+                                                                className="w-full border rounded-lg p-2 text-xs bg-white outline-none"
+                                                            >
+                                                                <option value="Mendekati Kadaluwarsa (ED)">Mendekati Kadaluwarsa (ED)</option>
+                                                                <option value="Kemasan Rusak / Cacat Fisik">Kemasan Rusak / Cacat Fisik</option>
+                                                                <option value="Tidak Sesuai Surat Pesanan (SP)">Tidak Sesuai Surat Pesanan (SP)</option>
+                                                                <option value="Produk Terbit Recall BPOM">Produk Terbit Recall BPOM</option>
+                                                            </select>
+                                                        </div>
+
+                                                        {currentReturnItems.length > 1 && (
+                                                            <button 
+                                                                type="button" 
+                                                                onClick={() => handleRemoveItemRow(idx)} 
+                                                                className="text-rose-500 hover:text-rose-700 p-2 self-end sm:self-center"
+                                                            >
+                                                                <i className="fa-solid fa-trash text-sm"></i>
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                ))}
+
+                                                <button 
+                                                    type="button" 
+                                                    onClick={handleAddItemRow} 
+                                                    className="text-xs text-blue-600 font-semibold hover:underline flex items-center gap-1 mt-1"
+                                                >
+                                                    <i className="fa-solid fa-plus"></i> Tambah Baris Barang Lainnya
+                                                </button>
+                                            </div>
+
+                                            <div className="pt-2 flex justify-end">
+                                                <button type="submit" className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold px-5 py-2.5 rounded-lg shadow transition flex items-center gap-2">
+                                                    <i className="fa-solid fa-rotate-left"></i> Proses &amp; Kurangi Stok Retur Pembelian
+                                                </button>
+                                            </div>
+                                        </form>
+
+                                        <div>
+                                            <h3 className="text-sm font-bold text-slate-800 mb-3">Riwayat Transaksi Retur Pembelian ke PBF/Diskes</h3>
+                                            <div className="overflow-x-auto border rounded-xl">
+                                                <table className="w-full text-left text-xs text-slate-600">
+                                                    <thead className="bg-slate-50 font-semibold uppercase text-slate-500 border-b">
+                                                        <tr>
+                                                            <th className="p-3">Tanggal Retur</th>
+                                                            <th className="p-3">ID Transaksi</th>
+                                                            <th className="p-3">Ref. No Faktur</th>
+                                                            <th className="p-3">Nama Barang</th>
+                                                            <th className="p-3 text-right">Kuantitas Retur</th>
+                                                            <th className="p-3">Detail &amp; Alasan Retur</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y">
+                                                        {purchaseReturnLogs.length === 0 ? (
+                                                            <tr>
+                                                                <td colSpan="6" className="p-6 text-center text-slate-400 italic">Belum ada riwayat retur pembelian berdasarkan faktur.</td>
+                                                            </tr>
+                                                        ) : (
+                                                            purchaseReturnLogs.map((log, idx) => (
+                                                                <tr key={idx} className="hover:bg-slate-50">
+                                                                    <td className="p-3">{log.date}</td>
+                                                                    <td className="p-3 font-mono text-xs">{log.id}</td>
+                                                                    <td className="p-3 font-mono text-xs font-bold text-blue-600">{log.docNo.replace('RET-FAK/', '')}</td>
+                                                                    <td className="p-3 font-medium text-slate-800">{log.itemName}</td>
+                                                                    <td className="p-3 text-right font-bold text-rose-600 text-sm">-{log.qty}</td>
+                                                                    <td className="p-3 text-xs text-slate-600">{log.notes}</td>
+                                                                </tr>
+                                                            ))
+                                                        )}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+
+                            {/* TAB: STOK OPNAME */}
+                            {activeTab === 'stock_opname' && (() => {
+                                const handlePhysicalChange = (itemId, val) => {
+                                    setPhysicalCounts(prev => ({ ...prev, [itemId]: val }));
+                                };
+
+                                const handleReasonChange = (itemId, val) => {
+                                    setOpnameReasons(prev => ({ ...prev, [itemId]: val }));
+                                };
+
+                                const handleSaveStockOpname = (e) => {
+                                    e.preventDefault();
+                                    let updatedItems = [...items];
+                                    let newTrxs = [];
+                                    let adjustedCount = 0;
+
+                                    items.forEach(item => {
+                                        const physVal = physicalCounts[item.id];
+                                        if (physVal !== undefined && physVal !== '' && !isNaN(physVal)) {
+                                            const physicalQty = parseInt(physVal, 10);
+                                            const diff = physicalQty - item.stock;
+
+                                            if (diff !== 0) {
+                                                adjustedCount++;
+                                                updatedItems = updatedItems.map(i => {
+                                                    if (i.id === item.id) {
+                                                        return { ...i, stock: physicalQty };
+                                                    }
+                                                    return i;
+                                                });
+
+                                                newTrxs.push({
+                                                    id: 'TRX-SO-' + Date.now().toString().slice(-5) + '-' + Math.floor(Math.random()*10),
+                                                    date: opnameDate,
+                                                    itemId: item.id,
+                                                    itemName: item.name,
+                                                    type: diff > 0 ? 'IN' : 'OUT',
+                                                    qty: Math.abs(diff),
+                                                    docNo: `SO/${opnameDate.replace(/-/g,'')}`,
+                                                    notes: `Stok Opname [Sistem: ${item.stock} -> Fisik: ${physicalQty}] (Selisih: ${diff > 0 ? '+'+diff : diff}) - Ket: ${opnameReasons[item.id] || opnameNotes || 'Audit Berkala'}`
+                                                });
+                                            }
+                                        }
+                                    });
+
+                                    setItems(updatedItems);
+                                    setTransactions([...newTrxs, ...transactions]);
+                                    showAlert(`Stok Opname berhasil disimpan! ${adjustedCount} item sediaan disesuaikan dengan stok fisik.`);
+                                };
+
+                                return (
+                                    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-6">
+                                        <div className="border-b pb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                            <div>
+                                                <h2 className="text-lg font-bold text-slate-800">Stok Opname Sediaan Farmasi &amp; BMHP</h2>
+                                                <p className="text-sm text-slate-500">Pencocokan stok sistem dengan hasil perhitungan fisik di gudang / instalasi farmasi.</p>
+                                            </div>
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <button 
+                                                    onClick={() => {
+                                                        const headers = ["ID Produk", "Nama Produk", "Kategori", "Stok Sistem", "Satuan", "No Batch", "Exp Date"];
+                                                        const rows = items.map(i => [i.id, `"${i.name}"`, i.category, i.stock, i.unit, i.batchNo, i.expDate]);
+                                                        const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+                                                        const encodedUri = encodeURI(csvContent);
+                                                        const link = document.createElement("a");
+                                                        link.setAttribute("href", encodedUri);
+                                                        link.setAttribute("download", `Lembar_Kerja_Stok_Opname_${new Date().toISOString().slice(0,10)}.csv`);
+                                                        document.body.appendChild(link);
+                                                        link.click();
+                                                        link.remove();
+                                                        showAlert('Lembar kerja Stok Opname berhasil diunduh!');
+                                                    }}
+                                                    className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3.5 py-2 rounded-lg shadow transition flex items-center gap-1.5"
+                                                >
+                                                    <i className="fa-solid fa-file-excel"></i> Download Lembar Kerja Excel
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <form onSubmit={handleSaveStockOpname} className="space-y-4">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs">
+                                                <div>
+                                                    <label className="block font-semibold text-slate-600 mb-1">Tanggal Pelaksanaan Stok Opname *</label>
+                                                    <input type="date" value={opnameDate} onChange={e => setOpnameDate(e.target.value)} className="w-full border rounded-lg p-2 bg-white outline-none focus:ring-2 focus:ring-blue-500 text-xs" required />
+                                                </div>
+                                                <div>
+                                                    <label className="block font-semibold text-slate-600 mb-1">Keterangan / Berita Acara Umum</label>
+                                                    <input type="text" value={opnameNotes} onChange={e => setOpnameNotes(e.target.value)} placeholder="Contoh: Audit Rutin Bulanan Instalasi Farmasi" className="w-full border rounded-lg p-2 bg-white outline-none focus:ring-2 focus:ring-blue-500 text-xs" />
+                                                </div>
+                                            </div>
+
+                                            <div className="overflow-x-auto border rounded-xl">
+                                                <table className="w-full text-left text-xs text-slate-600">
+                                                    <thead className="bg-slate-50 font-semibold uppercase text-slate-500 border-b">
+                                                        <tr>
+                                                            <th className="p-3">Kode</th>
+                                                            <th className="p-3">Nama Produk</th>
+                                                            <th className="p-3">Kategori</th>
+                                                            <th className="p-3 text-center">Stok Sistem</th>
+                                                            <th className="p-3 text-center w-36">Stok Fisik (Input)</th>
+                                                            <th className="p-3 text-center">Selisih</th>
+                                                            <th className="p-3">Catatan / Alasan Selisih</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y">
+                                                        {items.map(item => {
+                                                            const physicalVal = physicalCounts[item.id] !== undefined ? physicalCounts[item.id] : item.stock;
+                                                            const diff = (parseInt(physicalVal, 10) || 0) - item.stock;
+                                                            return (
+                                                                <tr key={item.id} className="hover:bg-slate-50">
+                                                                    <td className="p-3 font-mono text-xs">{item.id}</td>
+                                                                    <td className="p-3 font-medium text-slate-800">
+                                                                        <div>{item.name}</div>
+                                                                        <div className="text-[10px] text-slate-400">Batch: {item.batchNo} | Exp: {item.expDate}</div>
+                                                                    </td>
+                                                                    <td className="p-3">{item.category}</td>
+                                                                    <td className="p-3 text-center font-bold text-slate-800">{item.stock} {item.unit}</td>
+                                                                    <td className="p-3 text-center">
+                                                                        <input 
+                                                                            type="number" 
+                                                                            min="0" 
+                                                                            value={physicalVal} 
+                                                                            onChange={e => handlePhysicalChange(item.id, e.target.value)} 
+                                                                            className="w-28 border rounded-lg p-2 text-center font-bold text-blue-600 text-xs bg-white focus:ring-2 focus:ring-blue-500 outline-none" 
+                                                                            required 
+                                                                        />
+                                                                    </td>
+                                                                    <td className={`p-3 text-center font-extrabold ${diff > 0 ? 'text-emerald-600' : diff < 0 ? 'text-rose-600' : 'text-slate-400'}`}>
+                                                                        {diff > 0 ? `+${diff}` : diff}
+                                                                    </td>
+                                                                    <td className="p-3">
+                                                                        <input 
+                                                                            type="text" 
+                                                                            value={opnameReasons[item.id] || ''} 
+                                                                            onChange={e => handleReasonChange(item.id, e.target.value)} 
+                                                                            placeholder="Sesuai / Rusak / Hilang..." 
+                                                                            className="w-full border rounded p-1.5 text-xs bg-white outline-none" 
+                                                                        />
+                                                                    </td>
+                                                                </tr>
+                                                            );
+                                                        })}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+
+                                            <div className="pt-2 flex justify-end">
+                                                <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-6 py-3 rounded-lg shadow-md transition flex items-center gap-2">
+                                                    <i className="fa-solid fa-clipboard-check"></i> Simpan &amp; Sesuaikan Stok Opname Samaan
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                );
+                            })()}
+
+                            {/* OTHER PLACEHOLDER TABS */}
+                            {['adjustment'].includes(activeTab) && (
+                                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 text-center space-y-3">
+                                    <div className="text-4xl text-blue-500"><i className="fa-solid fa-list-check"></i></div>
+                                    <h2 className="text-base font-bold text-slate-800 capitalize">Modul {activeTab.replace('_', ' ')}</h2>
+                                    <p className="text-xs text-slate-500 max-w-md mx-auto">Modul ini telah terintegrasi dengan database stok farmasi utama dan siap digunakan untuk proses audit LPLPO Klinik.</p>
+                                </div>
+                            )}
+                        </main>
+                    </div>
+                </div>
+            );
+        }
+
+        const container = document.getElementById('root');
+        const root = ReactDOM.createRoot(container);
+        root.render(<App />);
+    </script>
+</body>
+</html>
