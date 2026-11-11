@@ -83,7 +83,6 @@
                 setTimeout(() => setAlertMessage(''), 4000);
             };
 
-            // Fungsi Kalkulasi Stok Real-Time Terpusat (Menjamin Sinkronisasi Total)
             const calculateCurrentStock = (itemId) => {
                 const targetItem = items.find(i => i.id === itemId);
                 if (!targetItem) return 0;
@@ -97,14 +96,13 @@
                         } else if (t.type === 'OUT') {
                             stock -= qty;
                         } else if (t.type === 'ADJUSTMENT') {
-                            stock += qty; // qty pada adjustment bisa positif (+) atau negatif (-)
+                            stock += qty;
                         }
                     }
                 });
                 return stock < 0 ? 0 : stock;
             };
 
-            // Enhanced items with computed stock
             const getSynchronizedItems = () => {
                 return items.map(item => ({
                     ...item,
@@ -159,6 +157,59 @@
                             }
                         } catch (err) {
                             showAlert('Gagal membaca file JSON backup.', 'error');
+                        }
+                    };
+                }
+            };
+
+            // Import Products from CSV Template
+            const handleImportProductsCSV = (e) => {
+                const fileReader = new FileReader();
+                if (e.target.files && e.target.files[0]) {
+                    fileReader.readAsText(e.target.files[0], "UTF-8");
+                    fileReader.onload = (event) => {
+                        try {
+                            const textData = event.target.result;
+                            const lines = textData.split(/\r\n|\n/);
+                            if (lines.length < 2) {
+                                showAlert('File CSV kosong atau format tidak valid.', 'error');
+                                return;
+                            }
+                            let newItems = [...items];
+                            let importedCount = 0;
+
+                            for (let i = 1; i < lines.length; i++) {
+                                const line = lines[i].trim();
+                                if (!line) continue;
+                                const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(val => val.replace(/^"|"$/g, '').trim());
+                                if (cols.length >= 7) {
+                                    const [id, name, category, stock, unit, batchNo, expDate, price, minStock] = cols;
+                                    const existingIdx = newItems.findIndex(item => item.id === id);
+                                    const itemObj = {
+                                        id: id || ('OBT-' + Date.now() + '-' + i),
+                                        name: name || 'Produk Baru',
+                                        category: category || 'Oral',
+                                        initialStock: Number(stock) || 0,
+                                        unit: unit || 'Tablet',
+                                        minStock: Number(minStock) || 10,
+                                        price: Number(price) || 1000,
+                                        isLasa: false,
+                                        isHighAlert: false,
+                                        expDate: expDate || '2027-12-31',
+                                        batchNo: batchNo || 'BATCH-NEW'
+                                    };
+                                    if (existingIdx >= 0) {
+                                        newItems[existingIdx] = { ...newItems[existingIdx], ...itemObj };
+                                    } else {
+                                        newItems.push(itemObj);
+                                    }
+                                    importedCount++;
+                                }
+                            }
+                            setItems(newItems);
+                            showAlert(`Berhasil mengimpor ${importedCount} produk dari template CSV!`);
+                        } catch (err) {
+                            showAlert('Gagal membaca file CSV template produk.', 'error');
                         }
                     };
                 }
@@ -344,7 +395,7 @@
                     const bufferStock = 6;
                     const safetyStock = Math.ceil(consumptionRate * bufferStock);
                     const rop = Math.ceil((consumptionRate * leadTime) + safetyStock);
-                    const targetStock = Math.ceil(consumptionRate * 30) + safetyStock;
+                    const targetStock = Math.ceil(consumptionRate * 90) + safetyStock;
                     const suggestedOrder = targetStock > item.stock ? targetStock - item.stock : 0;
 
                     return {
@@ -382,22 +433,22 @@
             });
 
             const handleExportProductsExcel = () => {
-                let csvContent = "data:text/csv;charset=utf-8,Kode,Nama Produk,Kategori,Stok,Satuan,No Batch,Exp Date\r\n";
+                let csvContent = "data:text/csv;charset=utf-8,Kode,Nama Produk,Kategori,Stok,Satuan,No Batch,Exp Date,Harga,MinStok\r\n";
                 filteredProducts.forEach(row => {
-                    csvContent += `"${row.id}","${row.name}","${row.category}",${row.stock},"${row.unit}","${row.batchNo}","${row.expDate}"\r\n`;
+                    csvContent += `"${row.id}","${row.name}","${row.category}",${row.stock},"${row.unit}","${row.batchNo}","${row.expDate}",${row.price},${row.minStock}\r\n`;
                 });
                 const encodedUri = encodeURI(csvContent);
                 const link = document.createElement("a");
                 link.setAttribute("href", encodedUri);
-                link.setAttribute("download", `Daftar_Produk_${new Date().toISOString().slice(0,10)}.csv`);
+                link.setAttribute("download", `Template_Daftar_Produk_${new Date().toISOString().slice(0,10)}.csv`);
                 document.body.appendChild(link);
                 link.click();
                 link.remove();
-                showAlert("Daftar Produk berhasil diunduh!");
+                showAlert("Template Daftar Produk berhasil diunduh!");
             };
 
             const handleExportPurchasePlanExcel = () => {
-                let csvContent = "data:text/csv;charset=utf-8,Rank,Kode,Nama Produk,Kelas Pareto,Total Keluar (30h),Konsumsi/Hari,Safety Stock,ROP,Stok Saat Ini,Rekomendasi Beli,Satuan\r\n";
+                let csvContent = "data:text/csv;charset=utf-8,Rank,Kode,Nama Produk,Kelas Pareto,Total Keluar (90h),Konsumsi/Hari,Safety Stock,ROP,Stok Saat Ini,Rekomendasi Beli,Satuan\r\n";
                 purchasePlanList.forEach(row => {
                     csvContent += `${row.rank},"${row.id}","${row.name}","${row.abcClass}",${row.totalOut},${row.consumptionRate},${row.safetyStock},${row.rop},${row.stock},${row.suggestedOrder},"${row.unit}"\r\n`;
                 });
@@ -793,12 +844,13 @@
                                 </div>
                             )}
 
+                            {/* TAB: DAFTAR PRODUK (DENGAN UPLOAD TEMPLATE CSV & DOWNLOAD EXCEL) */}
                             {activeTab === 'products' && (
                                 <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
                                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4">
                                         <div>
                                             <h2 className="text-lg font-bold text-slate-800">Katalog &amp; Daftar Produk Farmasi</h2>
-                                            <p className="text-sm text-slate-500">Pencarian, penyaringan data sediaan obat &amp; unduh Excel.</p>
+                                            <p className="text-sm text-slate-500">Pencarian, penyaringan data sediaan obat, unduh template &amp; upload data barang.</p>
                                         </div>
                                         <div className="flex flex-wrap gap-2 w-full sm:w-auto items-center">
                                             <input 
@@ -806,7 +858,7 @@
                                                 value={productSearch} 
                                                 onChange={e => setProductSearch(e.target.value)} 
                                                 placeholder="Cari nama obat / kode..." 
-                                                className="border rounded-lg px-3 py-2 text-sm w-full sm:w-56 outline-none" 
+                                                className="border rounded-lg px-3 py-2 text-sm w-full sm:w-48 outline-none" 
                                             />
                                             <select 
                                                 value={productCategoryFilter} 
@@ -819,9 +871,13 @@
                                                 <option value="Cold-Chain">Cold-Chain</option>
                                                 <option value="BMHP">BMHP</option>
                                             </select>
-                                            <button onClick={handleExportProductsExcel} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2.5 rounded-lg shadow transition flex items-center gap-1.5">
-                                                <i className="fa-solid fa-file-excel"></i> Download Excel
+                                            <button onClick={handleExportProductsExcel} className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-2.5 rounded-lg shadow transition flex items-center gap-1.5" title="Download Template CSV">
+                                                <i className="fa-solid fa-file-arrow-down"></i> Template
                                             </button>
+                                            <label className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2.5 rounded-lg shadow transition flex items-center gap-1.5 cursor-pointer">
+                                                <i className="fa-solid fa-file-arrow-up"></i> Upload Template
+                                                <input type="file" accept=".csv" onChange={handleImportProductsCSV} className="hidden" />
+                                            </label>
                                         </div>
                                     </div>
 
@@ -928,7 +984,7 @@
                                     <div className="border-b pb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                                         <div>
                                             <h2 className="text-lg font-bold text-slate-800">Rencana Pembelian &amp; Analisis Pareto ABC</h2>
-                                            <p className="text-sm text-slate-500">Perencanaan pengadaan berbasis konsumsi, Lead Time 14 hari, &amp; Buffer Stock 6 hari.</p>
+                                            <p className="text-sm text-slate-500">Perencanaan pengadaan berbasis konsumsi (proyeksi 90 hari), Lead Time 14 hari, &amp; Buffer Stock 6 hari.</p>
                                         </div>
                                         <div className="flex flex-wrap items-center gap-2">
                                             <div className="flex gap-2 text-xs">
@@ -948,7 +1004,7 @@
                                                     <th className="p-3">Rank</th>
                                                     <th className="p-3">Nama Produk</th>
                                                     <th className="p-3 text-center">Kelas Pareto</th>
-                                                    <th className="p-3 text-right">Total Keluar (30h)</th>
+                                                    <th className="p-3 text-right">Total Keluar (90h)</th>
                                                     <th className="p-3 text-right">Konsumsi/Hari</th>
                                                     <th className="p-3 text-right">Safety Stock</th>
                                                     <th className="p-3 text-right">ROP</th>
@@ -1123,7 +1179,7 @@
                                     <div className="flex justify-between items-center border-b pb-4">
                                         <div>
                                             <h2 className="text-lg font-bold text-slate-800">Stok Opname Farmasi</h2>
-                                            <p className="text-sm text-slate-500">Pencocokan stok sistem dengan stok fisik sediaan obat &amp; BMHP.</p>
+                                            <p className="text-sm text-slate-500">Pencocokan stok sistem dengan stok fisik lengkap dengan verifikasi No. Batch &amp; Tanggal Expired.</p>
                                         </div>
                                         <button onClick={handleSaveStockOpname} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-4 py-2 rounded-lg shadow transition">
                                             Simpan Hasil Opname
@@ -1134,8 +1190,9 @@
                                         <table className="w-full text-left text-sm text-slate-600">
                                             <thead className="bg-slate-50 text-xs font-semibold uppercase text-slate-500 border-b">
                                                 <tr>
-                                                    <th className="p-3">Kode</th>
-                                                    <th className="p-3">Nama Produk</th>
+                                                    <th className="p-3">Kode &amp; Nama Produk</th>
+                                                    <th className="p-3">Kode Batch</th>
+                                                    <th className="p-3">Tanggal Expired</th>
                                                     <th className="p-3">Stok Sistem</th>
                                                     <th className="p-3">Stok Fisik Real</th>
                                                     <th className="p-3">Selisih</th>
@@ -1148,9 +1205,13 @@
                                                     const diff = Number(currentPhysical) - item.stock;
                                                     return (
                                                         <tr key={item.id} className="hover:bg-slate-50">
-                                                            <td className="p-3 font-mono text-xs">{item.id}</td>
-                                                            <td className="p-3 font-medium text-slate-800">{item.name}</td>
-                                                            <td className="p-3 font-bold text-blue-600">{item.stock} {item.unit}</td>
+                                                            <td className="p-3">
+                                                                <div className="font-medium text-slate-800">{item.name}</div>
+                                                                <div className="text-xs font-mono text-slate-400">{item.id}</div>
+                                                            </td>
+                                                            <td className="p-3 font-mono text-xs font-semibold text-blue-600">{item.batchNo}</td>
+                                                            <td className="p-3 text-xs font-bold text-rose-600">{item.expDate}</td>
+                                                            <td className="p-3 font-bold text-slate-700">{item.stock} {item.unit}</td>
                                                             <td className="p-3">
                                                                 <input 
                                                                     type="number" 
