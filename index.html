@@ -8,6 +8,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- SheetJS (xlsx) untuk dukungan file Excel .xlsx -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <!-- React & Babel Standalone -->
     <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
@@ -162,87 +164,95 @@
                 }
             };
 
-            const handleImportProductsCSV = (e) => {
-                const fileReader = new FileReader();
-                if (e.target.files && e.target.files[0]) {
-                    fileReader.readAsText(e.target.files[0], "UTF-8");
-                    fileReader.onload = (event) => {
-                        try {
-                            const textData = event.target.result;
-                            const lines = textData.split(/\r\n|\n/).filter(l => l.trim() !== '');
-                            if (lines.length < 2) {
-                                showAlert('File CSV kosong atau format tidak valid.', 'error');
-                                return;
-                            }
-                            
-                            const headerCols = lines[0].split(',').map(h => h.replace(/^"|"$/g, '').trim().toLowerCase());
-                            
-                            const getColIdx = (names) => {
-                                for (let name of names) {
-                                    const idx = headerCols.findIndex(h => h.includes(name));
-                                    if (idx >= 0) return idx;
-                                }
-                                return -1;
-                            };
+            // IMPORT EXCEL (.xlsx / .xls) USING SHEETJS
+            const handleImportProductsExcel = (e) => {
+                const file = e.target.files && e.target.files[0];
+                if (!file) return;
 
-                            const idxId = getColIdx(['kode', 'id']);
-                            const idxName = getColIdx(['nama produk', 'nama', 'name']);
-                            const idxCat = getColIdx(['kategori', 'category']);
-                            const idxStock = getColIdx(['stok', 'stock']);
-                            const idxUnit = getColIdx(['satuan', 'unit']);
-                            const idxBatch = getColIdx(['batch', 'no batch']);
-                            const idxExp = getColIdx(['exp', 'expired', 'date']);
-                            const idxPrice = getColIdx(['harga', 'price']);
-                            const idxMin = getColIdx(['min', 'minimum']);
+                const reader = new FileReader();
+                reader.onload = (evt) => {
+                    try {
+                        const data = new Uint8Array(evt.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const firstSheetName = workbook.SheetNames[0];
+                        const worksheet = workbook.Sheets[firstSheetName];
+                        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
-                            let newItems = [...items];
-                            let importedCount = 0;
-
-                            for (let i = 1; i < lines.length; i++) {
-                                const line = lines[i].trim();
-                                if (!line) continue;
-                                const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(val => val.replace(/^"|"$/g, '').trim());
-                                
-                                const id = idxId >= 0 ? cols[idxId] : ('OBT-' + Date.now() + '-' + i);
-                                const name = idxName >= 0 ? cols[idxName] : 'Produk Baru';
-                                const category = idxCat >= 0 ? cols[idxCat] : 'Oral';
-                                const stockVal = idxStock >= 0 ? Number(cols[idxStock]) : 0;
-                                const unit = idxUnit >= 0 ? cols[idxUnit] : 'Tablet';
-                                const batchNo = idxBatch >= 0 ? cols[idxBatch] : 'BATCH-NEW';
-                                const expDate = idxExp >= 0 ? cols[idxExp] : '2027-12-31';
-                                const price = idxPrice >= 0 ? Number(cols[idxPrice]) : 1000;
-                                const minStock = idxMin >= 0 ? Number(cols[idxMin]) : 10;
-
-                                if (id && name) {
-                                    const existingIdx = newItems.findIndex(item => item.id === id);
-                                    const itemObj = {
-                                        id,
-                                        name,
-                                        category,
-                                        initialStock: stockVal,
-                                        unit,
-                                        minStock,
-                                        price,
-                                        isLasa: false,
-                                        isHighAlert: false,
-                                        expDate,
-                                        batchNo
-                                    };
-                                    if (existingIdx >= 0) {
-                                        newItems[existingIdx] = { ...newItems[existingIdx], ...itemObj };
-                                    } else {
-                                        newItems.push(itemObj);
-                                    }
-                                    importedCount++;
-                                }
-                            }
-                            setItems(newItems);
-                            showAlert(`Berhasil mengimpor ${importedCount} produk! Daftar produk telah diperbarui.`);
-                        } catch (err) {
-                            showAlert('Gagal memproses file CSV.', 'error');
+                        if (jsonData.length < 2) {
+                            showAlert('File Excel kosong atau format tidak valid.', 'error');
+                            return;
                         }
-                    };
-                }
+
+                        const headers = jsonData[0].map(h => String(h).trim().toLowerCase());
+                        
+                        const getIdx = (keywords) => {
+                            for (let kw of keywords) {
+                                const idx = headers.findIndex(h => h.includes(kw));
+                                if (idx >= 0) return idx;
+                            }
+                            return -1;
+                        };
+
+                        const idxId = getIdx(['kode', 'id']);
+                        const idxName = getIdx(['nama produk', 'nama', 'name']);
+                        const idxCat = getIdx(['kategori', 'category']);
+                        const idxStock = getIdx(['stok', 'stock']);
+                        const idxUnit = getIdx(['satuan', 'unit']);
+                        const idxBatch = getIdx(['batch', 'no batch']);
+                        const idxExp = getIdx(['exp', 'expired', 'date']);
+                        const idxPrice = getIdx(['harga', 'price']);
+                        const idxMin = getIdx(['min', 'minimum']);
+
+                        let newItems = [...items];
+                        let importedCount = 0;
+
+                        for (let i = 1; i < jsonData.length; i++) {
+                            const row = jsonData[i];
+                            if (!row || row.length === 0) continue;
+
+                            const id = idxId >= 0 ? row[idxId] : ('OBT-' + Date.now() + '-' + i);
+                            const name = idxName >= 0 ? row[idxName] : 'Produk Baru';
+                            const category = idxCat >= 0 ? row[idxCat] : 'Oral';
+                            const stockVal = idxStock >= 0 ? Number(row[idxStock]) : 0;
+                            const unit = idxUnit >= 0 ? row[idxUnit] : 'Tablet';
+                            const batchNo = idxBatch >= 0 ? row[idxBatch] : 'BATCH-NEW';
+                            const expDate = idxExp >= 0 ? row[idxExp] : '2027-12-31';
+                            const price = idxPrice >= 0 ? Number(row[idxPrice]) : 1000;
+                            const minStock = idxMin >= 0 ? Number(row[idxMin]) : 10;
+
+                            if (id && name) {
+                                const existingIdx = newItems.findIndex(item => item.id === String(id).trim());
+                                const itemObj = {
+                                    id: String(id).trim(),
+                                    name: String(name).trim(),
+                                    category: String(category).trim(),
+                                    initialStock: isNaN(stockVal) ? 0 : stockVal,
+                                    unit: String(unit).trim(),
+                                    minStock: isNaN(minStock) ? 10 : minStock,
+                                    price: isNaN(price) ? 1000 : price,
+                                    isLasa: false,
+                                    isHighAlert: false,
+                                    expDate: String(expDate).trim(),
+                                    batchNo: String(batchNo).trim()
+                                };
+
+                                if (existingIdx >= 0) {
+                                    newItems[existingIdx] = { ...newItems[existingIdx], ...itemObj };
+                                } else {
+                                    newItems.push(itemObj);
+                                }
+                                importedCount++;
+                            }
+                        }
+
+                        setItems(newItems);
+                        showAlert(`Berhasil mengimpor ${importedCount} produk dari file Excel (.xlsx)!`);
+                    } catch (err) {
+                        console.error(err);
+                        showAlert('Gagal membaca file Excel.', 'error');
+                    }
+                };
+                reader.readAsArrayBuffer(file);
             };
 
             const [outForm, setOutForm] = useState({
@@ -462,34 +472,29 @@
                 return matchesSearch && matchesCategory;
             });
 
+            // EXPORT TEMPLATE AS .XLSX
             const handleExportProductsExcel = () => {
-                let csvContent = "data:text/csv;charset=utf-8,Kode,Nama Produk,Kategori,Stok,Satuan,No Batch,Exp Date,Harga,MinStok\r\n";
-                filteredProducts.forEach(row => {
-                    csvContent += `"${row.id}","${row.name}","${row.category}",${row.stock},"${row.unit}","${row.batchNo}","${row.expDate}",${row.price},${row.minStock}\r\n`;
-                });
-                const encodedUri = encodeURI(csvContent);
-                const link = document.createElement("a");
-                link.setAttribute("href", encodedUri);
-                link.setAttribute("download", `Template_Daftar_Produk_${new Date().toISOString().slice(0,10)}.csv`);
-                document.body.appendChild(link);
-                link.click();
-                link.remove();
-                showAlert("Template Daftar Produk berhasil diunduh!");
+                const worksheetData = [
+                    ["Kode", "Nama Produk", "Kategori", "Stok", "Satuan", "No Batch", "Exp Date", "Harga", "MinStok"],
+                    ...filteredProducts.map(row => [row.id, row.name, row.category, row.stock, row.unit, row.batchNo, row.expDate, row.price, row.minStock])
+                ];
+                const ws = XLSX.utils.aoa_to_sheet(worksheetData);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Daftar Produk");
+                XLSX.writeFile(wb, `Template_Daftar_Produk_${new Date().toISOString().slice(0,10)}.xlsx`);
+                showAlert("Template Excel (.xlsx) berhasil diunduh!");
             };
 
             const handleExportPurchasePlanExcel = () => {
-                let csvContent = "data:text/csv;charset=utf-8,Rank,Kode,Nama Produk,Kelas Pareto,Total Keluar (90h),Konsumsi/Hari,Safety Stock,ROP,Stok Saat Ini,Rekomendasi Beli,Satuan\r\n";
-                purchasePlanList.forEach(row => {
-                    csvContent += `${row.rank},"${row.id}","${row.name}","${row.abcClass}",${row.totalOut},${row.consumptionRate},${row.safetyStock},${row.rop},${row.stock},${row.suggestedOrder},"${row.unit}"\r\n`;
-                });
-                const encodedUri = encodeURI(csvContent);
-                const link = document.createElement("a");
-                link.setAttribute("href", encodedUri);
-                link.setAttribute("download", `Rencana_Pembelian_ParetoABC_${new Date().toISOString().slice(0,10)}.csv`);
-                document.body.appendChild(link);
-                link.click();
-                link.remove();
-                showAlert("Rencana Pembelian berhasil diunduh!");
+                const worksheetData = [
+                    ["Rank", "Kode", "Nama Produk", "Kelas Pareto", "Total Keluar (90h)", "Konsumsi/Hari", "Safety Stock", "ROP", "Stok Saat Ini", "Rekomendasi Beli", "Satuan"],
+                    ...purchasePlanList.map(row => [row.rank, row.id, row.name, row.abcClass, row.totalOut, row.consumptionRate, row.safetyStock, row.rop, row.stock, row.suggestedOrder, row.unit])
+                ];
+                const ws = XLSX.utils.aoa_to_sheet(worksheetData);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Rencana Pembelian");
+                XLSX.writeFile(wb, `Rencana_Pembelian_ParetoABC_${new Date().toISOString().slice(0,10)}.xlsx`);
+                showAlert("Rencana Pembelian berhasil diunduh sebagai Excel (.xlsx)!");
             };
 
             const getDailyOutgoingData = () => {
@@ -521,18 +526,15 @@
             const dailyOutgoing = getDailyOutgoingData();
 
             const handleExportDailyOutgoingExcel = () => {
-                let csvContent = "data:text/csv;charset=utf-8,Kode,Nama Produk,Total Keluar,Satuan\r\n";
-                dailyOutgoing.list.forEach(row => {
-                    csvContent += `"${row.id}","${row.name}",${row.totalOut},"${row.unit}"\r\n`;
-                });
-                const encodedUri = encodeURI(csvContent);
-                const link = document.createElement("a");
-                link.setAttribute("href", encodedUri);
-                link.setAttribute("download", `Daftar_Barang_Keluar_${outStartDate}_hingga_${outEndDate}.csv`);
-                document.body.appendChild(link);
-                link.click();
-                link.remove();
-                showAlert("Daftar Barang Keluar berhasil diunduh!");
+                const worksheetData = [
+                    ["Kode", "Nama Produk", "Total Keluar", "Satuan"],
+                    ...dailyOutgoing.list.map(row => [row.id, row.name, row.totalOut, row.unit])
+                ];
+                const ws = XLSX.utils.aoa_to_sheet(worksheetData);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Barang Keluar");
+                XLSX.writeFile(wb, `Daftar_Barang_Keluar_${outStartDate}_hingga_${outEndDate}.xlsx`);
+                showAlert("Daftar Barang Keluar berhasil diunduh sebagai Excel (.xlsx)!");
             };
 
             const handleSaveStockOpname = () => {
@@ -827,7 +829,7 @@
                                                 <input type="date" value={outEndDate} onChange={e => setOutEndDate(e.target.value)} className="border rounded px-2 py-1.5" />
                                             </div>
                                             <button onClick={handleExportDailyOutgoingExcel} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow transition flex items-center gap-1.5">
-                                                <i className="fa-solid fa-file-excel"></i> Download Excel
+                                                <i className="fa-solid fa-file-excel"></i> Download Excel (.xlsx)
                                             </button>
                                         </div>
                                     </div>
@@ -874,12 +876,13 @@
                                 </div>
                             )}
 
+                            {/* TAB: DAFTAR PRODUK (DENGAN UPLOAD & DOWNLOAD EXCEL .XLSX) */}
                             {activeTab === 'products' && (
                                 <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
                                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4">
                                         <div>
                                             <h2 className="text-lg font-bold text-slate-800">Katalog &amp; Daftar Produk Farmasi</h2>
-                                            <p className="text-sm text-slate-500">Pencarian, penyaringan data sediaan obat, unduh template &amp; upload data barang.</p>
+                                            <p className="text-sm text-slate-500">Pencarian, penyaringan data sediaan obat, unduh template Excel &amp; upload file .xlsx.</p>
                                         </div>
                                         <div className="flex flex-wrap gap-2 w-full sm:w-auto items-center">
                                             <input 
@@ -900,12 +903,12 @@
                                                 <option value="Cold-Chain">Cold-Chain</option>
                                                 <option value="BMHP">BMHP</option>
                                             </select>
-                                            <button onClick={handleExportProductsExcel} className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-2.5 rounded-lg shadow transition flex items-center gap-1.5" title="Download Template CSV">
-                                                <i className="fa-solid fa-file-arrow-down"></i> Template
+                                            <button onClick={handleExportProductsExcel} className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-2.5 rounded-lg shadow transition flex items-center gap-1.5" title="Download Template Excel (.xlsx)">
+                                                <i className="fa-solid fa-file-arrow-down"></i> Template .xlsx
                                             </button>
                                             <label className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2.5 rounded-lg shadow transition flex items-center gap-1.5 cursor-pointer">
-                                                <i className="fa-solid fa-file-arrow-up"></i> Upload Template
-                                                <input type="file" accept=".csv" onChange={handleImportProductsCSV} className="hidden" />
+                                                <i className="fa-solid fa-file-arrow-up"></i> Upload .xlsx
+                                                <input type="file" accept=".xlsx, .xls" onChange={handleImportProductsExcel} className="hidden" />
                                             </label>
                                         </div>
                                     </div>
@@ -1021,7 +1024,7 @@
                                                 <span className="bg-emerald-50 text-emerald-700 font-semibold px-3 py-1.5 rounded-lg border border-emerald-200">Buffer Stock: 6 Hari</span>
                                             </div>
                                             <button onClick={handleExportPurchasePlanExcel} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow transition flex items-center gap-1.5">
-                                                <i className="fa-solid fa-file-excel"></i> Download Excel
+                                                <i className="fa-solid fa-file-excel"></i> Download Excel (.xlsx)
                                             </button>
                                         </div>
                                     </div>
