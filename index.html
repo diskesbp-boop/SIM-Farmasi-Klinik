@@ -162,7 +162,6 @@
                 }
             };
 
-            // Import Products from CSV Template
             const handleImportProductsCSV = (e) => {
                 const fileReader = new FileReader();
                 if (e.target.files && e.target.files[0]) {
@@ -170,11 +169,32 @@
                     fileReader.onload = (event) => {
                         try {
                             const textData = event.target.result;
-                            const lines = textData.split(/\r\n|\n/);
+                            const lines = textData.split(/\r\n|\n/).filter(l => l.trim() !== '');
                             if (lines.length < 2) {
                                 showAlert('File CSV kosong atau format tidak valid.', 'error');
                                 return;
                             }
+                            
+                            const headerCols = lines[0].split(',').map(h => h.replace(/^"|"$/g, '').trim().toLowerCase());
+                            
+                            const getColIdx = (names) => {
+                                for (let name of names) {
+                                    const idx = headerCols.findIndex(h => h.includes(name));
+                                    if (idx >= 0) return idx;
+                                }
+                                return -1;
+                            };
+
+                            const idxId = getColIdx(['kode', 'id']);
+                            const idxName = getColIdx(['nama produk', 'nama', 'name']);
+                            const idxCat = getColIdx(['kategori', 'category']);
+                            const idxStock = getColIdx(['stok', 'stock']);
+                            const idxUnit = getColIdx(['satuan', 'unit']);
+                            const idxBatch = getColIdx(['batch', 'no batch']);
+                            const idxExp = getColIdx(['exp', 'expired', 'date']);
+                            const idxPrice = getColIdx(['harga', 'price']);
+                            const idxMin = getColIdx(['min', 'minimum']);
+
                             let newItems = [...items];
                             let importedCount = 0;
 
@@ -182,21 +202,31 @@
                                 const line = lines[i].trim();
                                 if (!line) continue;
                                 const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(val => val.replace(/^"|"$/g, '').trim());
-                                if (cols.length >= 7) {
-                                    const [id, name, category, stock, unit, batchNo, expDate, price, minStock] = cols;
+                                
+                                const id = idxId >= 0 ? cols[idxId] : ('OBT-' + Date.now() + '-' + i);
+                                const name = idxName >= 0 ? cols[idxName] : 'Produk Baru';
+                                const category = idxCat >= 0 ? cols[idxCat] : 'Oral';
+                                const stockVal = idxStock >= 0 ? Number(cols[idxStock]) : 0;
+                                const unit = idxUnit >= 0 ? cols[idxUnit] : 'Tablet';
+                                const batchNo = idxBatch >= 0 ? cols[idxBatch] : 'BATCH-NEW';
+                                const expDate = idxExp >= 0 ? cols[idxExp] : '2027-12-31';
+                                const price = idxPrice >= 0 ? Number(cols[idxPrice]) : 1000;
+                                const minStock = idxMin >= 0 ? Number(cols[idxMin]) : 10;
+
+                                if (id && name) {
                                     const existingIdx = newItems.findIndex(item => item.id === id);
                                     const itemObj = {
-                                        id: id || ('OBT-' + Date.now() + '-' + i),
-                                        name: name || 'Produk Baru',
-                                        category: category || 'Oral',
-                                        initialStock: Number(stock) || 0,
-                                        unit: unit || 'Tablet',
-                                        minStock: Number(minStock) || 10,
-                                        price: Number(price) || 1000,
+                                        id,
+                                        name,
+                                        category,
+                                        initialStock: stockVal,
+                                        unit,
+                                        minStock,
+                                        price,
                                         isLasa: false,
                                         isHighAlert: false,
-                                        expDate: expDate || '2027-12-31',
-                                        batchNo: batchNo || 'BATCH-NEW'
+                                        expDate,
+                                        batchNo
                                     };
                                     if (existingIdx >= 0) {
                                         newItems[existingIdx] = { ...newItems[existingIdx], ...itemObj };
@@ -207,9 +237,9 @@
                                 }
                             }
                             setItems(newItems);
-                            showAlert(`Berhasil mengimpor ${importedCount} produk dari template CSV!`);
+                            showAlert(`Berhasil mengimpor ${importedCount} produk! Daftar produk telah diperbarui.`);
                         } catch (err) {
-                            showAlert('Gagal membaca file CSV template produk.', 'error');
+                            showAlert('Gagal memproses file CSV.', 'error');
                         }
                     };
                 }
@@ -844,7 +874,6 @@
                                 </div>
                             )}
 
-                            {/* TAB: DAFTAR PRODUK (DENGAN UPLOAD TEMPLATE CSV & DOWNLOAD EXCEL) */}
                             {activeTab === 'products' && (
                                 <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
                                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4">
