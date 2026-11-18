@@ -25,7 +25,7 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-        // Data sediaan obat tersinkronisasi langsung dari Spreadsheet Stok Barang Klinik
+        // Data master sediaan farmasi tersinkronisasi langsung dari Google Spreadsheet
         const INITIAL_ITEMS = [
             { id: 'OBT-001', name: 'Acepres 12.5 mg (Captopril)', category: 'Oral', initialStock: 300, unit: 'Tablet', minStock: 50, price: 600, isLasa: true, isHighAlert: false, expDate: '2027-11-10', batchNo: '88954' },
             { id: 'OBT-002', name: 'Acetylcysteine 200mg', category: 'Oral', initialStock: 300, unit: 'Tablet', minStock: 50, price: 800, isLasa: false, isHighAlert: false, expDate: '2028-11-03', batchNo: 'C60318j' },
@@ -35,19 +35,25 @@
             { id: 'OBT-006', name: 'Acyclovir 400 mg (B)', category: 'Oral', initialStock: 242, unit: 'Tablet', minStock: 50, price: 2000, isLasa: true, isHighAlert: false, expDate: '2027-11-07', batchNo: '4340' },
             { id: 'OBT-007', name: 'Acyclovir 400 mg (C)', category: 'Oral', initialStock: 600, unit: 'Tablet', minStock: 50, price: 2000, isLasa: true, isHighAlert: false, expDate: '2027-11-03', batchNo: 'E30827J' },
             { id: 'OBT-008', name: 'Alcohol Swab Onemed', category: 'BMHP', initialStock: 2, unit: 'Box', minStock: 5, price: 15000, isLasa: false, isHighAlert: false, expDate: '2028-11-07', batchNo: '2588' },
-            { id: 'OBT-009', name: 'Alkohol 70% 300 mL', category: 'Antiseptik', initialStock: 3, unit: 'Botol', minStock: 5, price: 25000, isLasa: false, isHighAlert: false, expDate: '2028-05-09', batchNo: 'A055S005' },
-            { id: 'OBT-010', name: 'Allopurinol 100mg', category: 'Oral', initialStock: 2500, unit: 'Tablet', minStock: 200, price: 500, isLasa: false, isHighAlert: false, expDate: '2027-11-07', batchNo: '4394' },
-            { id: 'OBT-011', name: 'Amlodipine 5 mg', category: 'Oral', initialStock: 250, unit: 'Tablet', minStock: 50, price: 500, isLasa: true, isHighAlert: false, expDate: '2028-05-05', batchNo: '652n' },
-            { id: 'OBT-012', name: 'Amoxicillin 500 mg', category: 'Oral', initialStock: 100, unit: 'Tablet', minStock: 50, price: 700, isLasa: false, isHighAlert: false, expDate: '2028-04-26', batchNo: 'A26d073' },
-            { id: 'OBT-013', name: 'Antasida doen Tab', category: 'Oral', initialStock: 1700, unit: 'Tablet', minStock: 200, price: 300, isLasa: false, isHighAlert: false, expDate: '2029-11-11', batchNo: '1511014' },
-            { id: 'OBT-014', name: 'Intunal F', category: 'Oral', initialStock: 1900, unit: 'Tablet', minStock: 200, price: 900, isLasa: false, isHighAlert: false, expDate: '2029-11-07', batchNo: 'A5G716' },
-            { id: 'BMHP-001', name: 'Astacare Glove Uk. M', category: 'BMHP', initialStock: 1, unit: 'Box', minStock: 5, price: 35000, isLasa: false, isHighAlert: false, expDate: '2031-03-03', batchNo: '26-04-083' }
+            { id: 'OBT-009', name: 'Alcohol Swab Onemed (B)', category: 'BMHP', initialStock: 200, unit: 'Box', minStock: 20, price: 15000, isLasa: false, isHighAlert: false, expDate: '2028-07-07', batchNo: '4082881' },
+            { id: 'OBT-010', name: 'Alkohol 70% 300 mL', category: 'Antiseptik', initialStock: 3, unit: 'Botol', minStock: 5, price: 25000, isLasa: false, isHighAlert: false, expDate: '2028-05-09', batchNo: 'A055S005' },
+            { id: 'OBT-011', name: 'Allopurinol 100mg', category: 'Oral', initialStock: 2500, unit: 'Tablet', minStock: 200, price: 500, isLasa: false, isHighAlert: false, expDate: '2027-11-07', batchNo: '4394' },
+            { id: 'OBT-012', name: 'Allopurinol 100mg (B)', category: 'Oral', initialStock: 348, unit: 'Tablet', minStock: 50, price: 500, isLasa: false, isHighAlert: false, expDate: '2027-11-11', batchNo: '6433' },
+            { id: 'OBT-013', name: 'Alpara Tablet', category: 'Oral', initialStock: 400, unit: 'Tablet', minStock: 50, price: 900, isLasa: false, isHighAlert: false, expDate: '2027-09-01', batchNo: 's207' },
+            { id: 'OBT-014', name: 'Ambroxol syr', category: 'Sirup', initialStock: 25, unit: 'Botol', minStock: 5, price: 12000, isLasa: false, isHighAlert: false, expDate: '2030-03-03', batchNo: 'SCD02855' },
+            { id: 'OBT-015', name: 'Amlodipine 10 mg', category: 'Oral', initialStock: 500, unit: 'Tablet', minStock: 50, price: 800, isLasa: true, isHighAlert: false, expDate: '2028-11-07', batchNo: 'H26013' },
+            { id: 'OBT-016', name: 'Amlodipine 10 mg (B)', category: 'Oral', initialStock: 134, unit: 'Tablet', minStock: 30, price: 800, isLasa: true, isHighAlert: false, expDate: '2027-12-11', batchNo: '941n' },
+            { id: 'OBT-017', name: 'Amlodipine 5 mg', category: 'Oral', initialStock: 250, unit: 'Tablet', minStock: 50, price: 500, isLasa: true, isHighAlert: false, expDate: '2028-05-11', batchNo: '652n' },
+            { id: 'OBT-018', name: 'Amoxicillin 500 mg', category: 'Oral', initialStock: 100, unit: 'Tablet', minStock: 50, price: 700, isLasa: false, isHighAlert: false, expDate: '2028-04-26', batchNo: 'A26d073' },
+            { id: 'OBT-019', name: 'Antasida doen Tab', category: 'Oral', initialStock: 1700, unit: 'Tablet', minStock: 200, price: 300, isLasa: false, isHighAlert: false, expDate: '2029-11-11', batchNo: '1511014' },
+            { id: 'BMHP-001', name: 'Astacare Glove Uk. M', category: 'BMHP', initialStock: 1, unit: 'Box', minStock: 5, price: 35000, isLasa: false, isHighAlert: false, expDate: '2031-03-03', batchNo: '26-04-083-04-7' },
+            { id: 'BMHP-002', name: 'Astacare Glove Uk. S', category: 'BMHP', initialStock: 2, unit: 'Box', minStock: 5, price: 35000, isLasa: false, isHighAlert: false, expDate: '2031-06-06', batchNo: '26-07-128-05-6' }
         ];
 
         const INITIAL_TRANSACTIONS = [
             { id: 'TRX-1001', date: '2026-11-11', itemId: 'OBT-001', itemName: 'Acepres 12.5 mg (Captopril)', type: 'IN', qty: 300, docNo: 'DO/KODAERAL/2026/11', notes: 'Dropping Logistik' },
             { id: 'TRX-1002', date: '2026-11-12', itemId: 'OBT-001', itemName: 'Acepres 12.5 mg (Captopril)', type: 'OUT', qty: 45, docNo: 'RSP/2026/001', notes: 'Pasien: Mayor Laut (K) Budi' },
-            { id: 'TRX-1003', date: '2026-11-12', itemId: 'OBT-013', itemName: 'Antasida doen Tab', type: 'OUT', qty: 50, docNo: 'RSP/2026/002', notes: 'Pasien: Koptu Marinir Joko' }
+            { id: 'TRX-1003', date: '2026-11-12', itemId: 'OBT-019', itemName: 'Antasida doen Tab', type: 'OUT', qty: 50, docNo: 'RSP/2026/002', notes: 'Pasien: Koptu Marinir Joko' }
         ];
 
         function App() {
@@ -67,9 +73,6 @@
 
             const [productSearch, setProductSearch] = useState('');
             const [productCategoryFilter, setProductCategoryFilter] = useState('ALL');
-
-            const [outStartDate, setOutStartDate] = useState(new Date().toISOString().split('T')[0]);
-            const [outEndDate, setOutEndDate] = useState(new Date().toISOString().split('T')[0]);
 
             const [outForm, setOutForm] = useState({
                 patientName: '',
@@ -129,104 +132,6 @@
             };
 
             const nearExpiredItems = getNearExpiredItems();
-
-            const handleImportProductsExcel = (e) => {
-                const file = e.target.files && e.target.files[0];
-                if (!file) return;
-
-                const reader = new FileReader();
-                reader.onload = (evt) => {
-                    try {
-                        const data = new Uint8Array(evt.target.result);
-                        const workbook = XLSX.read(data, { type: 'array' });
-                        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-                        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-
-                        if (jsonData.length < 2) {
-                            showAlert('File Excel kosong atau format tidak valid.', 'error');
-                            return;
-                        }
-
-                        const headers = jsonData[0].map(h => String(h).trim().toLowerCase());
-                        const getIdx = (keywords) => {
-                            for (let kw of keywords) {
-                                const idx = headers.findIndex(h => h.includes(kw));
-                                if (idx >= 0) return idx;
-                            }
-                            return -1;
-                        };
-
-                        const idxId = getIdx(['kode', 'id']);
-                        const idxName = getIdx(['nama', 'name']);
-                        const idxCat = getIdx(['kategori', 'category']);
-                        const idxStock = getIdx(['stok', 'stock']);
-                        const idxUnit = getIdx(['satuan', 'unit']);
-                        const idxBatch = getIdx(['batch']);
-                        const idxExp = getIdx(['exp', 'expired', 'tanggal']);
-
-                        const parseExcelDate = (val) => {
-                            if (!val) return '2027-12-31';
-                            if (typeof val === 'number') {
-                                const d = new Date(1899, 12, 30);
-                                d.setDate(d.getDate() + val);
-                                return !isNaN(d.getTime()) ? d.toISOString().split('T')[0] : '2027-12-31';
-                            }
-                            const str = String(val).trim();
-                            if (/^\d{5}$/.test(str)) {
-                                const num = Number(str);
-                                const d = new Date(1899, 12, 30);
-                                d.setDate(d.getDate() + num);
-                                return !isNaN(d.getTime()) ? d.toISOString().split('T')[0] : '2027-12-31';
-                            }
-                            return str;
-                        };
-
-                        let newItems = [...items];
-                        let importedCount = 0;
-
-                        for (let i = 1; i < jsonData.length; i++) {
-                            const row = jsonData[i];
-                            if (!row || row.length === 0) continue;
-
-                            const id = idxId >= 0 && row[idxId] !== undefined ? row[idxId] : ('OBT-' + Date.now() + '-' + i);
-                            const name = idxName >= 0 && row[idxName] !== undefined ? row[idxName] : 'Produk Baru';
-                            const category = idxCat >= 0 && row[idxCat] !== undefined ? row[idxCat] : 'Oral';
-                            const stockVal = idxStock >= 0 && row[idxStock] !== undefined ? Number(row[idxStock]) : 0;
-                            const unit = idxUnit >= 0 && row[idxUnit] !== undefined ? String(row[idxUnit]).trim() : 'Tablet';
-                            const batchNo = idxBatch >= 0 && row[idxBatch] !== undefined ? String(row[idxBatch]).trim() : 'BATCH-NEW';
-                            const expDate = idxExp >= 0 && row[idxExp] !== undefined ? parseExcelDate(row[idxExp]) : '2027-12-31';
-
-                            if (id && name) {
-                                const existingIdx = newItems.findIndex(item => item.id === String(id).trim());
-                                const itemObj = {
-                                    id: String(id).trim(),
-                                    name: String(name).trim(),
-                                    category: String(category).trim(),
-                                    initialStock: isNaN(stockVal) ? 0 : stockVal,
-                                    unit: unit,
-                                    minStock: 10,
-                                    price: 1000,
-                                    isLasa: false,
-                                    isHighAlert: false,
-                                    expDate: expDate,
-                                    batchNo: batchNo
-                                };
-
-                                if (existingIdx >= 0) newItems[existingIdx] = { ...newItems[existingIdx], ...itemObj };
-                                else newItems.push(itemObj);
-                                importedCount++;
-                            }
-                        }
-
-                        setItems(newItems);
-                        showAlert(`Berhasil mengimpor ${importedCount} produk dari Excel!`);
-                    } catch (err) {
-                        console.error(err);
-                        showAlert('Gagal membaca file Excel.', 'error');
-                    }
-                };
-                reader.readAsArrayBuffer(file);
-            };
 
             const handleOutSubmit = (e) => {
                 e.preventDefault();
@@ -302,16 +207,10 @@
                                 <div>
                                     <h1 className="font-bold text-lg leading-tight tracking-wide flex items-center gap-2">
                                         SIM-FARMASI KLINIK PRATAMA KODAERAL XIV
-                                        <span className="text-[10px] bg-blue-800 text-blue-200 px-2 py-0.5 rounded-full uppercase">Live Dashboard</span>
+                                        <span className="text-[10px] bg-blue-800 text-blue-200 px-2 py-0.5 rounded-full uppercase">Synced Spreadsheet</span>
                                     </h1>
-                                    <p className="text-xs text-slate-400">Pengelolaan Sediaan Farmasi, Kartu Stok &amp; Barang Keluar Masuk</p>
+                                    <p className="text-xs text-slate-400">Terhubung dengan Master Data Stok Barang (Diskes Kodaeral XIV)</p>
                                 </div>
-                            </div>
-                            <div>
-                                <label className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-4 py-2 rounded-lg shadow transition flex items-center gap-2 cursor-pointer">
-                                    <i className="fa-solid fa-file-excel"></i> Import Master Data Excel (.xlsx)
-                                    <input type="file" accept=".xlsx, .xls" onChange={handleImportProductsExcel} className="hidden" />
-                                </label>
                             </div>
                         </div>
                     </header>
@@ -420,7 +319,7 @@
                                 <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
                                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4">
                                         <div>
-                                            <h2 className="text-lg font-bold text-slate-800">Daftar Sediaan Sesuai Master Data Spreadsheet</h2>
+                                            <h2 className="text-lg font-bold text-slate-800">Daftar Sediaan Sesuai Master Spreadsheet</h2>
                                             <p className="text-sm text-slate-500">Pencarian dan monitoring stok real-time.</p>
                                         </div>
                                         <div className="flex gap-2 w-full sm:w-auto">
