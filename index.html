@@ -4,13 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard Manajemen Farmasi Klinik - Klinik Pratama Kodaeral XIV</title>
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- SheetJS (xlsx) untuk dukungan file Excel .xlsx -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <!-- React & Babel Standalone -->
     <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -25,116 +20,16 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-        // Data mentah master sediaan dari Google Spreadsheet Klinik Pratama Kodaeral XIV
-        const RAW_ITEMS = [
-            { id: 'MMPB0100', name: 'Acepres 12.5 mg (Captopril)', category: 'Oral', initialStock: 300, unit: 'Tablet', minStock: 50, price: 600, expDate: '2027-11-10', batchNo: '88954' },
-            { id: 'MMPB0101', name: 'Acetylcysteine 200mg', category: 'Oral', initialStock: 300, unit: 'Tablet', minStock: 50, price: 800, expDate: '2028-11-03', batchNo: 'C60318j' },
-            { id: 'MMPB0101', name: 'Acetylcysteine 200mg', category: 'Oral', initialStock: 104, unit: 'Tablet', minStock: 20, price: 800, expDate: '2028-11-03', batchNo: '318j' },
-            { id: 'MMPB0103', name: 'Acifar 200 mg (Acyclovir)', category: 'Oral', initialStock: 1000, unit: 'Tablet', minStock: 100, price: 1200, expDate: '2027-03-03', batchNo: 'C40716J' },
-            { id: 'MMPB0104', name: 'Acyclovir 400 mg', category: 'Oral', initialStock: 500, unit: 'Tablet', minStock: 50, price: 2000, expDate: '2027-11-09', batchNo: '5359' },
-            { id: 'MMPB0104', name: 'Acyclovir 400 mg', category: 'Oral', initialStock: 242, unit: 'Tablet', minStock: 50, price: 2000, expDate: '2027-11-07', batchNo: '4340' },
-            { id: 'MMPB0104', name: 'Acyclovir 400 mg', category: 'Oral', initialStock: 600, unit: 'Tablet', minStock: 50, price: 2000, expDate: '2027-11-03', batchNo: 'E30827J' },
-            { id: 'MMPB0107', name: 'Alcohol Swab Onemed', category: 'BMHP', initialStock: 2, unit: 'Box', minStock: 5, price: 15000, expDate: '2028-11-07', batchNo: '2588' },
-            { id: 'MMPB0107', name: 'Alcohol Swab Onemed', category: 'BMHP', initialStock: 200, unit: 'Box', minStock: 20, price: 15000, expDate: '2028-07-07', batchNo: '4082881' },
-            { id: 'MMPB0109', name: 'Alkohol 70% 300 mL', category: 'Antiseptik', initialStock: 3, unit: 'Botol', minStock: 5, price: 25000, expDate: '2028-05-09', batchNo: 'A055S005' },
-            { id: 'MMPB0110', name: 'Allopurinol 100mg', category: 'Oral', initialStock: 2500, unit: 'Tablet', minStock: 200, price: 500, expDate: '2027-11-07', batchNo: '4394' },
-            { id: 'MMPB0110', name: 'Allopurinol 100mg', category: 'Oral', initialStock: 348, unit: 'Tablet', minStock: 50, price: 500, expDate: '2027-11-11', batchNo: '6433' },
-            { id: 'MMPB0112', name: 'Alpara Tablet', category: 'Oral', initialStock: 400, unit: 'Tablet', minStock: 50, price: 900, expDate: '2027-09-01', batchNo: 's207' },
-            { id: 'MMPB0113', name: 'Ambroxol syr', category: 'Sirup', initialStock: 25, unit: 'Botol', minStock: 5, price: 12000, expDate: '2030-03-03', batchNo: 'SCD02855' },
-            { id: 'MMPB0114', name: 'Amlodipine 10 mg', category: 'Oral', initialStock: 500, unit: 'Tablet', minStock: 50, price: 800, expDate: '2028-11-07', batchNo: 'H26013' },
-            { id: 'MMPB0114', name: 'Amlodipine 10 mg', category: 'Oral', initialStock: 134, unit: 'Tablet', minStock: 30, price: 800, expDate: '2027-12-11', batchNo: '941n' },
-            { id: 'MMPB0116', name: 'Amlodipine 5 mg', category: 'Oral', initialStock: 250, unit: 'Tablet', minStock: 50, price: 500, expDate: '2028-05-11', batchNo: '652n' },
-            { id: 'MMPB0116', name: 'Amlodipine 5 mg', category: 'Oral', initialStock: 260, unit: 'Tablet', minStock: 50, price: 500, expDate: '2028-05-11', batchNo: '652n' },
-            { id: 'MMPB0118', name: 'Amoxicillin 500 mg', category: 'Oral', initialStock: 100, unit: 'Tablet', minStock: 50, price: 700, expDate: '2028-04-26', batchNo: 'A26d073' },
-            { id: 'MMPB0118', name: 'Amoxicillin 500 mg', category: 'Oral', initialStock: 45, unit: 'Tablet', minStock: 20, price: 700, expDate: '2027-06-11', batchNo: '6027' },
-            { id: 'MMPB0118', name: 'Amoxicillin 500 mg', category: 'Oral', initialStock: 400, unit: 'Tablet', minStock: 50, price: 700, expDate: '2028-04-01', batchNo: 'A26D073' },
-            { id: 'MMPB0121', name: 'Amoxicillin syr', category: 'Sirup', initialStock: 29, unit: 'Botol', minStock: 5, price: 14000, expDate: '2030-03-03', batchNo: 'SKF12954' },
-            { id: 'MMPB0122', name: 'Anitid (Ranitidine)', category: 'Oral', initialStock: 200, unit: 'Tablet', minStock: 50, price: 800, expDate: '2027-10-01', batchNo: '23854' },
-            { id: 'MMPB0123', name: 'Antasida doen Tab', category: 'Oral', initialStock: 1700, unit: 'Tablet', minStock: 200, price: 300, expDate: '2029-11-11', batchNo: '1511014' },
-            { id: 'MMPB0123', name: 'Antasida doen Tab', category: 'Oral', initialStock: 224, unit: 'Tablet', minStock: 50, price: 300, expDate: '2029-11-11', batchNo: '11014' },
-            { id: 'MMPB0123', name: 'Antasida doen Tab', category: 'Oral', initialStock: 100, unit: 'Tablet', minStock: 30, price: 300, expDate: '2029-11-11', batchNo: '1511014' },
-            { id: 'MMPB0126', name: 'Asam folat', category: 'Oral', initialStock: 200, unit: 'Tablet', minStock: 50, price: 400, expDate: '2027-06-01', batchNo: '25tf006' },
-            { id: 'MMPB0127', name: 'Askamex (Levamisole Hcl)', category: 'Oral', initialStock: 200, unit: 'Tablet', minStock: 50, price: 1000, expDate: '2028-03-01', batchNo: 'C26A01' },
-            { id: 'MMPB0128', name: 'Astacare Glove Uk. M', category: 'BMHP', initialStock: 1, unit: 'Box', minStock: 5, price: 35000, expDate: '2031-03-03', batchNo: '26-04-083' },
-            { id: 'MMPB0129', name: 'Astacare Glove Uk. S', category: 'BMHP', initialStock: 2, unit: 'Box', minStock: 5, price: 35000, expDate: '2031-06-06', batchNo: '26-07-128' },
-            { id: 'MMPB0130', name: 'Autocheck Asam Urat', category: 'Alat Medis', initialStock: 4, unit: 'Botol', minStock: 1, price: 75000, expDate: '2027-08-11', batchNo: '62110' },
-            { id: 'MMPB0131', name: 'Autocheck Glucose', category: 'Alat Medis', initialStock: 1, unit: 'Botol', minStock: 1, price: 75000, expDate: '2027-12-11', batchNo: '16120' },
-            { id: 'MMPB0132', name: 'Autocheck kolesterol', category: 'Alat Medis', initialStock: 1, unit: 'Botol', minStock: 1, price: 85000, expDate: '2027-07-11', batchNo: '2010' },
-            { id: 'MMPB0133', name: 'Bedak Salysil', category: 'Topikal', initialStock: 5, unit: 'Pcs', minStock: 2, price: 6000, expDate: '2030-05-01', batchNo: '4525' },
-            { id: 'MMPB0134', name: 'Berzin (Cetirizine)', category: 'Oral', initialStock: 5, unit: 'Tablet', minStock: 10, price: 500, expDate: '2027-09-11', batchNo: '9054' },
-            { id: 'MMPB0135', name: 'Betametasone 0,1 Cream', category: 'Topikal', initialStock: 7, unit: 'Tube', minStock: 2, price: 9000, expDate: '2029-03-01', batchNo: '6555' },
-            { id: 'MMPB0135', name: 'Betametasone 0,1 Cream', category: 'Topikal', initialStock: 25, unit: 'Tube', minStock: 5, price: 9000, expDate: '2027-10-01', batchNo: '092w' },
-            { id: 'MMPB0137', name: 'Biogesic (Paracetamol)', category: 'Oral', initialStock: 1100, unit: 'Tablet', minStock: 100, price: 500, expDate: '2038-04-01', batchNo: '25054301' },
-            { id: 'MMPB0137', name: 'Biogesic (Paracetamol)', category: 'Oral', initialStock: 102, unit: 'Tablet', minStock: 20, price: 500, expDate: '2030-04-01', batchNo: '4301' },
-            { id: 'MMPB0139', name: 'Broxal 30 mg (Ambroxol) Tab', category: 'Oral', initialStock: 207, unit: 'Tablet', minStock: 50, price: 600, expDate: '2030-09-11', batchNo: '654' },
-            { id: 'MMPB0140', name: 'Broxal Tablet', category: 'Oral', initialStock: 1700, unit: 'Tablet', minStock: 100, price: 600, expDate: '2030-09-11', batchNo: 'Tpk70654' },
-            { id: 'MMPB0141', name: 'Candesartan 16 mg', category: 'Oral', initialStock: 500, unit: 'Tablet', minStock: 50, price: 2500, expDate: '2027-10-01', batchNo: '5613' },
-            { id: 'MMPB0142', name: 'Captropil 12,5 mg', category: 'Oral', initialStock: 57, unit: 'Tablet', minStock: 20, price: 500, expDate: '2030-01-11', batchNo: '729' },
-            { id: 'MMPB0143', name: 'Cefadroxil 500mg', category: 'Oral', initialStock: 38, unit: 'Tablet', minStock: 20, price: 1200, expDate: '2028-04-11', batchNo: '182' },
-            { id: 'MMPB0144', name: 'Cefadroxil syr 60ml', category: 'Sirup', initialStock: 24, unit: 'Botol', minStock: 5, price: 16000, expDate: '2027-08-01', batchNo: 'C4H442' },
-            { id: 'MMPB0145', name: 'Cendo Xitrol', category: 'Tetes Mata', initialStock: 12, unit: 'Botol', minStock: 3, price: 38000, expDate: '2028-08-01', batchNo: '2091' },
-            { id: 'MMPB0146', name: 'Ceterizine 10mg', category: 'Oral', initialStock: 25, unit: 'Tablet', minStock: 10, price: 500, expDate: '2028-06-11', batchNo: '870' },
-            { id: 'MMPB0147', name: 'Ciprofloxacin 500 mg', category: 'Oral', initialStock: 190, unit: 'Tablet', minStock: 30, price: 1000, expDate: '2029-07-11', batchNo: '4372' },
-            { id: 'MMPB0148', name: 'Clindamicin 300 mg', category: 'Oral', initialStock: 183, unit: 'Tablet', minStock: 30, price: 2000, expDate: '2028-02-11', batchNo: '7001' },
-            { id: 'MMPB0149', name: 'CTM', category: 'Oral', initialStock: 1800, unit: 'Tablet', minStock: 100, price: 200, expDate: '2029-02-11', batchNo: '260202152' },
-            { id: 'MMPB0149', name: 'CTM', category: 'Oral', initialStock: 254, unit: 'Tablet', minStock: 50, price: 200, expDate: '2029-02-11', batchNo: '2602' },
-            { id: 'MMPB0151', name: 'Diatabs (Attapulgit)', category: 'Oral', initialStock: 3600, unit: 'Tablet', minStock: 200, price: 600, expDate: '2027-02-11', batchNo: '11402' },
-            { id: 'MMPB0151', name: 'Diatabs (Attapulgit)', category: 'Oral', initialStock: 144, unit: 'Tablet', minStock: 30, price: 600, expDate: '2027-08-11', batchNo: '2602' },
-            { id: 'MMPB0153', name: 'Dilatamol (salbutamol 2mg)', category: 'Oral', initialStock: 46, unit: 'Tablet', minStock: 20, price: 400, expDate: '2027-01-01', batchNo: '5154' },
-            { id: 'MMPB0154', name: 'Domperidone 10 Mg', category: 'Oral', initialStock: 250, unit: 'Tablet', minStock: 50, price: 700, expDate: '2030-03-11', batchNo: 'B6c087' },
-            { id: 'MMPB0154', name: 'Domperidone 10 Mg', category: 'Oral', initialStock: 164, unit: 'Tablet', minStock: 30, price: 700, expDate: '2030-08-01', batchNo: 'b6c087' },
-            { id: 'MMPB0156', name: 'EasyTouch Hemoglobin (HB)', category: 'Alat Medis', initialStock: 19, unit: 'Botol', minStock: 5, price: 95000, expDate: '2028-02-11', batchNo: '11a3g' },
-            { id: 'MMPB0157', name: 'EasyTouch Asam Urat', category: 'Alat Medis', initialStock: 2, unit: 'Botol', minStock: 1, price: 75000, expDate: '2027-11-11', batchNo: 'B25acc' },
-            { id: 'MMPB0158', name: 'EasyTouch Glucose', category: 'Alat Medis', initialStock: 2, unit: 'Botol', minStock: 1, price: 75000, expDate: '2027-12-11', batchNo: 'C29b1n' },
-            { id: 'MMPB0159', name: 'Ethyl Chloride 100 mL', category: 'Topikal', initialStock: 2, unit: 'Botol', minStock: 1, price: 120000, expDate: '2028-05-05', batchNo: '26009108' },
-            { id: 'MMPB0160', name: 'Fenaren (natrium diclofenac 50 mg)', category: 'Oral', initialStock: 238, unit: 'Tablet', minStock: 50, price: 900, expDate: '2031-01-01', batchNo: '8255' },
-            { id: 'MMPB0161', name: 'Farbion Tablet', category: 'Oral', initialStock: 20, unit: 'Tablet', minStock: 10, price: 500, expDate: '2028-01-09', batchNo: '176' },
-            { id: 'MMPB0162', name: 'Gentamicyn 0,1% Cream', category: 'Topikal', initialStock: 45, unit: 'Tube', minStock: 10, price: 9500, expDate: '2028-06-01', batchNo: '1455' },
-            { id: 'MMPB0163', name: 'Guaefenesine', category: 'Oral', initialStock: 2500, unit: 'Tablet', minStock: 200, price: 200, expDate: '2028-03-15', batchNo: '2605' },
-            { id: 'MMPB0163', name: 'Guaefenesine', category: 'Oral', initialStock: 217, unit: 'Tablet', minStock: 50, price: 200, expDate: '2028-05-01', batchNo: '2505' },
-            { id: 'MMPB0163', name: 'Guaefenesine', category: 'Oral', initialStock: 100, unit: 'Tablet', minStock: 30, price: 200, expDate: '2028-05-11', batchNo: '2605-01' },
-            { id: 'MMPB0164', name: 'Hydrocortisone acetate 2,5% Cream', category: 'Topikal', initialStock: 12, unit: 'Tube', minStock: 3, price: 10000, expDate: '2027-09-01', batchNo: '604W' }
-        ];
-
-        const processItems = (rawList) => {
-            const map = {};
-            rawList.forEach(item => {
-                if (map[item.id]) {
-                    map[item.id].initialStock += Number(item.initialStock) || 0;
-                    if (!map[item.id].batchNo.includes(item.batchNo)) {
-                        map[item.id].batchNo += `, ${item.batchNo}`;
-                    }
-                } else {
-                    map[item.id] = { ...item };
-                }
-            });
-            return Object.values(map);
-        };
-
-        const INITIAL_ITEMS = processItems(RAW_ITEMS);
-
-        const INITIAL_TRANSACTIONS = [
-            { id: 'TRX-1001', date: '2026-11-11', itemId: 'MMPB0100', itemName: 'Acepres 12.5 mg (Captopril)', type: 'IN', qty: 300, docNo: 'DO/KODAERAL/2026/11', notes: 'Dropping Logistik' },
-            { id: 'TRX-1002', date: '2026-11-12', itemId: 'MMPB0100', itemName: 'Acepres 12.5 mg (Captopril)', type: 'OUT', qty: 45, docNo: 'RSP/2026/001', notes: 'Pasien: Mayor Laut (K) Budi' },
-            { id: 'TRX-1003', date: '2026-11-12', itemId: 'MMPB0123', itemName: 'Antasida doen Tab', type: 'OUT', qty: 50, docNo: 'RSP/2026/002', notes: 'Pasien: Koptu Marinir Joko' }
-        ];
-
         function App() {
             const [activeTab, setActiveTab] = useState('dashboard');
-            const [items, setItems] = useState(() => {
-                const saved = localStorage.getItem('sim_farmasi_kodaeral_items');
-                return saved ? JSON.parse(saved) : INITIAL_ITEMS;
-            });
-
-            const [transactions, setTransactions] = useState(() => {
-                const saved = localStorage.getItem('sim_farmasi_kodaeral_trxs');
-                return saved ? JSON.parse(saved) : INITIAL_TRANSACTIONS;
-            });
-
+            const [items, setItems] = useState([]);
+            const [transactions, setTransactions] = useState([]);
+            const [loading, setLoading] = useState(true);
             const [alertMessage, setAlertMessage] = useState('');
             const [alertType, setAlertType] = useState('success');
             const [productSearch, setProductSearch] = useState('');
 
+            // State Form Barang Masuk (IN)
             const [inForm, setInForm] = useState({
                 docNo: '',
                 supplier: '',
@@ -143,6 +38,7 @@
                 qty: ''
             });
 
+            // State Form Resep Keluar (OUT)
             const [outForm, setOutForm] = useState({
                 patientName: '',
                 rxNo: '',
@@ -150,13 +46,32 @@
                 items: [{ itemId: '', qty: '' }]
             });
 
+            // Ambil data langsung dari Google Spreadsheet via Apps Script Web App
             useEffect(() => {
-                localStorage.setItem('sim_farmasi_kodaeral_items', JSON.stringify(items));
-            }, [items]);
-
-            useEffect(() => {
-                localStorage.setItem('sim_farmasi_kodaeral_trxs', JSON.stringify(transactions));
-            }, [transactions]);
+                fetch('https://script.google.com/macros/s/AKfycby2-xyd2juo0820fOVdp0Wq-yqx8ujd662TFPQLxBEfkJ4M0tY67E8iGLWbufjaBUisRw/exec')
+                    .then(res => res.json())
+                    .then(data => {
+                        // Memetakan baris spreadsheet ke format state dashboard
+                        const formatted = data.map((row, index) => ({
+                            id: String(row['Kode Barang'] || row['id'] || `MMPB01${index}`),
+                            name: String(row['Nama Sediaan'] || row['name'] || 'Barang Tanpa Nama'),
+                            category: String(row['Kategori'] || row['category'] || 'Oral'),
+                            initialStock: Number(row['Total Stok Fisik'] || row['Stok Fisik'] || row['initialStock'] || 0),
+                            unit: String(row['Satuan'] || row['unit'] || 'Tablet'),
+                            minStock: Number(row['Stok Minimum'] || row['minStock'] || 10),
+                            price: Number(row['Harga Satuan'] || row['price'] || 1000),
+                            expDate: String(row['Tanggal Expired'] || row['expDate'] || '2027-12-31'),
+                            batchNo: String(row['No. Batch Gabungan'] || row['batchNo'] || 'BATCH-01')
+                        }));
+                        setItems(formatted);
+                        setLoading(false);
+                    })
+                    .catch(err => {
+                        console.error("Gagal mengambil data:", err);
+                        setLoading(false);
+                        showAlert("Gagal menyinkronkan data dengan Google Spreadsheet.", "error");
+                    });
+            }, []);
 
             const showAlert = (msg, type = 'success') => {
                 setAlertMessage(msg);
@@ -174,7 +89,6 @@
                         const qty = Number(t.qty) || 0;
                         if (t.type === 'IN') stock += qty;
                         else if (t.type === 'OUT') stock -= qty;
-                        else if (t.type === 'ADJUSTMENT') stock += qty;
                     }
                 });
                 return stock < 0 ? 0 : stock;
@@ -224,7 +138,7 @@
                 validRows.forEach(row => {
                     const target = syncedItems.find(i => i.id === row.itemId);
                     newTrxs.push({
-                        id: 'TRX-OUT-' + Date.now() + '-' + Math.floor(Math.random()*10),
+                        id: 'TRX-OUT-' + Date.now(),
                         date: outForm.rxDate,
                         itemId: row.itemId,
                         itemName: target ? target.name : '',
@@ -240,37 +154,24 @@
                 showAlert(`Resep ${outForm.rxNo} berhasil diproses! Stok terpotong otomatis.`);
             };
 
-            const handleCancelTransaction = (docNo) => {
-                if (confirm(`Batalkan transaksi dengan No. Dokumen ${docNo} dan kembalikan stok?`)) {
-                    setTransactions(transactions.filter(t => t.docNo !== docNo));
-                    showAlert(`Transaksi ${docNo} dibatalkan dan stok dikembalikan.`);
-                }
-            };
-
-            const [stockCardItemId, setStockCardItemId] = useState(syncedItems[0]?.id || '');
-
-            const getStockCardTransactions = () => {
-                if (!stockCardItemId) return [];
-                const itemTrxs = transactions.filter(t => t.itemId === stockCardItemId);
-                itemTrxs.sort((a, b) => new Date(a.date) - new Date(b.date));
-                const targetItem = items.find(i => i.id === stockCardItemId);
-                let runningStock = targetItem ? (Number(targetItem.initialStock) || 0) : 0;
-
-                return itemTrxs.map(t => {
-                    if (t.type === 'IN') runningStock += t.qty;
-                    else if (t.type === 'OUT') runningStock -= t.qty;
-                    else if (t.type === 'ADJUSTMENT') runningStock += t.qty;
-                    return { ...t, balance: runningStock };
-                });
-            };
-
-            const filteredProducts = syncedItems.filter(item => {
-                const matchesSearch = item.name.toLowerCase().includes(productSearch.toLowerCase()) || item.id.toLowerCase().includes(productSearch.toLowerCase());
-                return matchesSearch;
-            });
+            const filteredProducts = syncedItems.filter(item => 
+                item.name.toLowerCase().includes(productSearch.toLowerCase()) || 
+                item.id.toLowerCase().includes(productSearch.toLowerCase())
+            );
 
             const totalInQty = transactions.filter(t => t.type === 'IN').reduce((acc, t) => acc + Number(t.qty), 0);
             const totalOutQty = transactions.filter(t => t.type === 'OUT').reduce((acc, t) => acc + Number(t.qty), 0);
+
+            if (loading) {
+                return (
+                    <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
+                        <div className="text-center space-y-3">
+                            <i className="fa-solid fa-spinner fa-spin text-3xl text-blue-500"></i>
+                            <p className="text-sm font-medium">Menghubungkan &amp; Menarik Data dari Google Spreadsheet...</p>
+                        </div>
+                    </div>
+                );
+            }
 
             return (
                 <div className="min-h-screen flex flex-col bg-slate-100 font-sans text-slate-800">
@@ -283,9 +184,9 @@
                                 <div>
                                     <h1 className="font-bold text-lg leading-tight tracking-wide flex items-center gap-2">
                                         SIM-FARMASI KLINIK PRATAMA KODAERAL XIV
-                                        <span className="text-[10px] bg-blue-800 text-blue-200 px-2 py-0.5 rounded-full uppercase">Synced Spreadsheet</span>
+                                        <span className="text-[10px] bg-emerald-600 text-white px-2 py-0.5 rounded-full uppercase">Live Google Sheets API</span>
                                     </h1>
-                                    <p className="text-xs text-slate-400">Terhubung dengan Master Data Stok Barang (Diskes Kodaeral XIV)</p>
+                                    <p className="text-xs text-slate-400">Terhubung secara real-time melalui Apps Script Web App</p>
                                 </div>
                             </div>
                         </div>
@@ -305,12 +206,6 @@
                             </button>
                             <button onClick={() => setActiveTab('prescription')} className={`w-full text-left px-3.5 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2.5 transition ${activeTab === 'prescription' ? 'bg-blue-50 text-blue-600 font-semibold' : 'text-slate-600 hover:bg-slate-50'}`}>
                                 <i className="fa-solid fa-file-prescription w-4 text-center"></i> Penebusan Resep (Keluar)
-                            </button>
-                            <button onClick={() => setActiveTab('daily_outgoing')} className={`w-full text-left px-3.5 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2.5 transition ${activeTab === 'daily_outgoing' ? 'bg-blue-50 text-blue-600 font-semibold' : 'text-slate-600 hover:bg-slate-50'}`}>
-                                <i className="fa-solid fa-boxes-stacked w-4 text-center"></i> Daftar Barang Keluar
-                            </button>
-                            <button onClick={() => setActiveTab('stockcard')} className={`w-full text-left px-3.5 py-2.5 rounded-lg text-sm font-medium flex items-center gap-2.5 transition ${activeTab === 'stockcard' ? 'bg-blue-50 text-blue-600 font-semibold' : 'text-slate-600 hover:bg-slate-50'}`}>
-                                <i className="fa-solid fa-id-card-clip w-4 text-center"></i> Kartu Stok (Audit Trail)
                             </button>
                         </aside>
 
@@ -364,7 +259,7 @@
                                 <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
                                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4">
                                         <div>
-                                            <h2 className="text-lg font-bold text-slate-800">Daftar Sediaan (Akumulasi Stok Per Kode Barang)</h2>
+                                            <h2 className="text-lg font-bold text-slate-800">Daftar Sediaan (Terkait Live Google Sheets)</h2>
                                             <p className="text-sm text-slate-500">Pencarian dan monitoring stok real-time.</p>
                                         </div>
                                         <div className="flex gap-2 w-full sm:w-auto">
@@ -404,8 +299,8 @@
                             {activeTab === 'goods_in' && (
                                 <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-6">
                                     <div>
-                                        <h2 className="text-lg font-bold text-slate-800 mb-1">Pencatatan &amp; KPI Barang Masuk (Dropping / Pembelian)</h2>
-                                        <p className="text-sm text-slate-500">Catat kiriman dari distributor/gudang untuk otomatis menambah stok fisik.</p>
+                                        <h2 className="text-lg font-bold text-slate-800 mb-1">Pencatatan &amp; KPI Barang Masuk</h2>
+                                        <p className="text-sm text-slate-500">Catat kiriman dari distributor untuk menambah stok fisik secara live.</p>
                                     </div>
 
                                     <form onSubmit={handleInSubmit} className="space-y-4 bg-slate-50 p-4 rounded-xl border">
@@ -445,36 +340,6 @@
                                             </div>
                                         </div>
                                     </form>
-
-                                    <div className="overflow-x-auto">
-                                        <h3 className="font-bold text-slate-700 text-sm mb-3">Riwayat Barang Masuk</h3>
-                                        <table className="w-full text-left text-sm text-slate-600">
-                                            <thead className="bg-slate-50 text-xs font-semibold uppercase text-slate-500 border-b">
-                                                <tr>
-                                                    <th className="p-3">Tanggal</th>
-                                                    <th className="p-3">No. Surat Jalan</th>
-                                                    <th className="p-3">Sumber / Distributor</th>
-                                                    <th className="p-3">Nama Sediaan</th>
-                                                    <th className="p-3 text-right">Qty Masuk (+)</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y">
-                                                {transactions.filter(t => t.type === 'IN').length === 0 ? (
-                                                    <tr><td colSpan="5" className="p-6 text-center text-slate-400 italic">Belum ada riwayat barang masuk.</td></tr>
-                                                ) : (
-                                                    transactions.filter(t => t.type === 'IN').map((t, idx) => (
-                                                        <tr key={t.id || idx} className="hover:bg-slate-50">
-                                                            <td className="p-3">{t.date}</td>
-                                                            <td className="p-3 font-mono text-xs font-semibold text-emerald-600">{t.docNo}</td>
-                                                            <td className="p-3 text-xs">{t.notes}</td>
-                                                            <td className="p-3 font-medium text-slate-800">{t.itemName}</td>
-                                                            <td className="p-3 text-right font-bold text-emerald-600">+{t.qty}</td>
-                                                        </tr>
-                                                    ))
-                                                )}
-                                            </tbody>
-                                        </table>
-                                    </div>
                                 </div>
                             )}
 
@@ -526,99 +391,6 @@
                                             Proses Resep &amp; Potong Stok
                                         </button>
                                     </form>
-                                </div>
-                            )}
-
-                            {activeTab === 'daily_outgoing' && (
-                                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-6">
-                                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b pb-4">
-                                        <div>
-                                            <h2 className="text-lg font-bold text-slate-800">Daftar Barang Keluar &amp; Pembatalan Transaksi</h2>
-                                            <p className="text-sm text-slate-500">Riwayat pengeluaran obat lengkap dengan tombol pembatalan untuk pengembalian stok.</p>
-                                        </div>
-                                    </div>
-
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full text-left text-sm text-slate-600">
-                                            <thead className="bg-slate-50 text-xs font-semibold uppercase text-slate-500 border-b">
-                                                <tr>
-                                                    <th className="p-3">Tanggal</th>
-                                                    <th className="p-3">No. Resep</th>
-                                                    <th className="p-3">Keterangan Pasien</th>
-                                                    <th className="p-3">Nama Sediaan</th>
-                                                    <th className="p-3">Qty Keluar</th>
-                                                    <th className="p-3 text-center">Aksi</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y">
-                                                {transactions.filter(t => t.type === 'OUT').length === 0 ? (
-                                                    <tr><td colSpan="6" className="p-6 text-center text-slate-400 italic">Belum ada transaksi barang keluar.</td></tr>
-                                                ) : (
-                                                    transactions.filter(t => t.type === 'OUT').map((t, idx) => (
-                                                        <tr key={t.id || idx} className="hover:bg-slate-50">
-                                                            <td className="p-3">{t.date}</td>
-                                                            <td className="p-3 font-mono text-xs font-semibold text-blue-600">{t.docNo}</td>
-                                                            <td className="p-3 text-xs">{t.notes}</td>
-                                                            <td className="p-3 font-medium text-slate-800">{t.itemName}</td>
-                                                            <td className="p-3 font-bold text-rose-600">{t.qty}</td>
-                                                            <td className="p-3 text-center">
-                                                                <button onClick={() => handleCancelTransaction(t.docNo)} className="bg-rose-100 hover:bg-rose-200 text-rose-700 text-xs px-3 py-1.5 rounded-lg font-semibold transition">
-                                                                    <i className="fa-solid fa-ban"></i> Batalkan
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                    ))
-                                                )}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            )}
-
-                            {activeTab === 'stockcard' && (
-                                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
-                                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4">
-                                        <div>
-                                            <h2 className="text-lg font-bold text-slate-800">Kartu Stok Barang (Audit Trail)</h2>
-                                            <p className="text-sm text-slate-500">Mutasi masuk dan keluar per item sediaan.</p>
-                                        </div>
-                                        <div className="w-full sm:w-64">
-                                            <select value={stockCardItemId} onChange={e => setStockCardItemId(e.target.value)} className="w-full border rounded-lg p-2 text-sm">
-                                                {syncedItems.map(i => (
-                                                    <option key={i.id} value={i.id}>{i.name} ({i.id})</option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    </div>
-
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full text-left text-sm text-slate-600">
-                                            <thead className="bg-slate-50 text-xs font-semibold uppercase text-slate-500 border-b">
-                                                <tr>
-                                                    <th className="p-3">Tanggal</th>
-                                                    <th className="p-3">No. Dokumen</th>
-                                                    <th className="p-3">Mutasi</th>
-                                                    <th className="p-3 text-right">Masuk (+)</th>
-                                                    <th className="p-3 text-right">Keluar (-)</th>
-                                                    <th className="p-3 text-right">Saldo Stok</th>
-                                                    <th className="p-3">Keterangan</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y">
-                                                {getStockCardTransactions().map((t, idx) => (
-                                                    <tr key={idx} className="hover:bg-slate-50">
-                                                        <td className="p-3">{t.date}</td>
-                                                        <td className="p-3 font-mono text-xs">{t.docNo}</td>
-                                                        <td className="p-3 font-semibold text-xs">{t.type}</td>
-                                                        <td className="p-3 text-right text-emerald-600 font-bold">{t.type === 'IN' ? `+${t.qty}` : '-'}</td>
-                                                        <td className="p-3 text-right text-rose-600 font-bold">{t.type === 'OUT' ? `-${t.qty}` : '-'}</td>
-                                                        <td className="p-3 text-right font-bold text-slate-800">{t.balance}</td>
-                                                        <td className="p-3 text-xs">{t.notes}</td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
                                 </div>
                             )}
                         </main>
