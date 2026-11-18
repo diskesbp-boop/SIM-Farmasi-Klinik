@@ -25,24 +25,29 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-        // Data awal disesuaikan dengan rekap sediaan Klinik Pratama Kodaeral XIV
+        // Data sediaan obat tersinkronisasi langsung dari Spreadsheet Stok Barang Klinik
         const INITIAL_ITEMS = [
             { id: 'OBT-001', name: 'Acepres 12.5 mg (Captopril)', category: 'Oral', initialStock: 300, unit: 'Tablet', minStock: 50, price: 600, isLasa: true, isHighAlert: false, expDate: '2027-11-10', batchNo: '88954' },
             { id: 'OBT-002', name: 'Acetylcysteine 200mg', category: 'Oral', initialStock: 300, unit: 'Tablet', minStock: 50, price: 800, isLasa: false, isHighAlert: false, expDate: '2028-11-03', batchNo: 'C60318j' },
-            { id: 'OBT-003', name: 'Acifar 200 mg (Acyclovir)', category: 'Oral', initialStock: 1000, unit: 'Tablet', minStock: 100, price: 1200, isLasa: true, isHighAlert: false, expDate: '2027-03-03', batchNo: 'C40716J' },
-            { id: 'OBT-004', name: 'Acyclovir 400 mg', category: 'Oral', initialStock: 500, unit: 'Tablet', minStock: 50, price: 2000, isLasa: true, isHighAlert: false, expDate: '2027-11-09', batchNo: '5359' },
-            { id: 'OBT-005', name: 'Amlodipine 5 mg', category: 'Oral', initialStock: 250, unit: 'Tablet', minStock: 50, price: 500, isLasa: true, isHighAlert: false, expDate: '2028-11-05', batchNo: '652n' },
-            { id: 'OBT-006', name: 'Amlodipine 10 mg', category: 'Oral', initialStock: 500, unit: 'Tablet', minStock: 50, price: 800, isLasa: true, isHighAlert: false, expDate: '2028-11-07', batchNo: 'H26013' },
-            { id: 'OBT-007', name: 'Amoxicillin 500 mg', category: 'Oral', initialStock: 100, unit: 'Kaplet', minStock: 50, price: 700, isLasa: false, isHighAlert: false, expDate: '2028-04-26', batchNo: 'A26d073' },
-            { id: 'OBT-008', name: 'Antasida doen Tab', category: 'Oral', initialStock: 1700, unit: 'Tablet', minStock: 200, price: 300, isLasa: false, isHighAlert: false, expDate: '2029-11-11', batchNo: '1511014' },
-            { id: 'OBT-009', name: 'Intunal F', category: 'Oral', initialStock: 1900, unit: 'Tablet', minStock: 200, price: 900, isLasa: false, isHighAlert: false, expDate: '2029-11-07', batchNo: 'A5G716' },
-            { id: 'BMHP-001', name: 'Astacare Glove Uk. M', category: 'BMHP', initialStock: 1, unit: 'Pcs', minStock: 10, price: 2500, isLasa: false, isHighAlert: false, expDate: '2031-03-03', batchNo: '26-04-083' }
+            { id: 'OBT-003', name: 'Acetylcysteine 200mg (B)', category: 'Oral', initialStock: 104, unit: 'Tablet', minStock: 20, price: 800, isLasa: false, isHighAlert: false, expDate: '2028-11-03', batchNo: '318j' },
+            { id: 'OBT-004', name: 'Acifar 200 mg (Acyclovir)', category: 'Oral', initialStock: 1000, unit: 'Tablet', minStock: 100, price: 1200, isLasa: true, isHighAlert: false, expDate: '2027-03-03', batchNo: 'C40716J' },
+            { id: 'OBT-005', name: 'Acyclovir 400 mg', category: 'Oral', initialStock: 500, unit: 'Tablet', minStock: 50, price: 2000, isLasa: true, isHighAlert: false, expDate: '2027-11-09', batchNo: '5359' },
+            { id: 'OBT-006', name: 'Acyclovir 400 mg (B)', category: 'Oral', initialStock: 242, unit: 'Tablet', minStock: 50, price: 2000, isLasa: true, isHighAlert: false, expDate: '2027-11-07', batchNo: '4340' },
+            { id: 'OBT-007', name: 'Acyclovir 400 mg (C)', category: 'Oral', initialStock: 600, unit: 'Tablet', minStock: 50, price: 2000, isLasa: true, isHighAlert: false, expDate: '2027-11-03', batchNo: 'E30827J' },
+            { id: 'OBT-008', name: 'Alcohol Swab Onemed', category: 'BMHP', initialStock: 2, unit: 'Box', minStock: 5, price: 15000, isLasa: false, isHighAlert: false, expDate: '2028-11-07', batchNo: '2588' },
+            { id: 'OBT-009', name: 'Alkohol 70% 300 mL', category: 'Antiseptik', initialStock: 3, unit: 'Botol', minStock: 5, price: 25000, isLasa: false, isHighAlert: false, expDate: '2028-05-09', batchNo: 'A055S005' },
+            { id: 'OBT-010', name: 'Allopurinol 100mg', category: 'Oral', initialStock: 2500, unit: 'Tablet', minStock: 200, price: 500, isLasa: false, isHighAlert: false, expDate: '2027-11-07', batchNo: '4394' },
+            { id: 'OBT-011', name: 'Amlodipine 5 mg', category: 'Oral', initialStock: 250, unit: 'Tablet', minStock: 50, price: 500, isLasa: true, isHighAlert: false, expDate: '2028-05-05', batchNo: '652n' },
+            { id: 'OBT-012', name: 'Amoxicillin 500 mg', category: 'Oral', initialStock: 100, unit: 'Tablet', minStock: 50, price: 700, isLasa: false, isHighAlert: false, expDate: '2028-04-26', batchNo: 'A26d073' },
+            { id: 'OBT-013', name: 'Antasida doen Tab', category: 'Oral', initialStock: 1700, unit: 'Tablet', minStock: 200, price: 300, isLasa: false, isHighAlert: false, expDate: '2029-11-11', batchNo: '1511014' },
+            { id: 'OBT-014', name: 'Intunal F', category: 'Oral', initialStock: 1900, unit: 'Tablet', minStock: 200, price: 900, isLasa: false, isHighAlert: false, expDate: '2029-11-07', batchNo: 'A5G716' },
+            { id: 'BMHP-001', name: 'Astacare Glove Uk. M', category: 'BMHP', initialStock: 1, unit: 'Box', minStock: 5, price: 35000, isLasa: false, isHighAlert: false, expDate: '2031-03-03', batchNo: '26-04-083' }
         ];
 
         const INITIAL_TRANSACTIONS = [
-            { id: 'TRX-1001', date: '2026-11-11', itemId: 'OBT-001', itemName: 'Acepres 12.5 mg (Captopril)', type: 'IN', qty: 300, docNo: 'DO/KODAERAL/2026/11', notes: 'Droping Logistik' },
+            { id: 'TRX-1001', date: '2026-11-11', itemId: 'OBT-001', itemName: 'Acepres 12.5 mg (Captopril)', type: 'IN', qty: 300, docNo: 'DO/KODAERAL/2026/11', notes: 'Dropping Logistik' },
             { id: 'TRX-1002', date: '2026-11-12', itemId: 'OBT-001', itemName: 'Acepres 12.5 mg (Captopril)', type: 'OUT', qty: 45, docNo: 'RSP/2026/001', notes: 'Pasien: Mayor Laut (K) Budi' },
-            { id: 'TRX-1003', date: '2026-11-12', itemId: 'OBT-008', itemName: 'Antasida doen Tab', type: 'OUT', qty: 30, docNo: 'RSP/2026/002', notes: 'Pasien: Koptu Marinir Joko' }
+            { id: 'TRX-1003', date: '2026-11-12', itemId: 'OBT-013', itemName: 'Antasida doen Tab', type: 'OUT', qty: 50, docNo: 'RSP/2026/002', notes: 'Pasien: Koptu Marinir Joko' }
         ];
 
         function App() {
@@ -125,7 +130,6 @@
 
             const nearExpiredItems = getNearExpiredItems();
 
-            // Handle Import Excel dengan Parser Tanggal Serial Excel & Unit Sediaan
             const handleImportProductsExcel = (e) => {
                 const file = e.target.files && e.target.files[0];
                 if (!file) return;
@@ -287,30 +291,6 @@
                 return matchesSearch && matchesCategory;
             });
 
-            const getDailyOutgoingData = () => {
-                const filteredTrxs = transactions.filter(t => t.type === 'OUT' && t.date >= outStartDate && t.date <= outEndDate);
-                const aggregated = {};
-                filteredTrxs.forEach(t => {
-                    if (!aggregated[t.itemId]) {
-                        const targetItem = syncedItems.find(i => i.id === t.itemId);
-                        aggregated[t.itemId] = {
-                            id: t.itemId,
-                            name: t.itemName || (targetItem ? targetItem.name : 'Unknown'),
-                            totalOut: 0,
-                            unit: targetItem ? targetItem.unit : 'Unit'
-                        };
-                    }
-                    aggregated[t.itemId].totalOut += t.qty;
-                });
-                return {
-                    list: Object.values(aggregated),
-                    totalRxCount: new Set(filteredTrxs.map(t => t.docNo)).size,
-                    totalQtyOut: filteredTrxs.reduce((sum, t) => sum + t.qty, 0)
-                };
-            };
-
-            const dailyOutgoing = getDailyOutgoingData();
-
             return (
                 <div className="min-h-screen flex flex-col bg-slate-100 font-sans text-slate-800">
                     <header className="bg-slate-900 text-white shadow-md border-b border-slate-800 sticky top-0 z-50">
@@ -440,7 +420,7 @@
                                 <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
                                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4">
                                         <div>
-                                            <h2 className="text-lg font-bold text-slate-800">Daftar Sediaan Sesuai Master Data</h2>
+                                            <h2 className="text-lg font-bold text-slate-800">Daftar Sediaan Sesuai Master Data Spreadsheet</h2>
                                             <p className="text-sm text-slate-500">Pencarian dan monitoring stok real-time.</p>
                                         </div>
                                         <div className="flex gap-2 w-full sm:w-auto">
