@@ -4,11 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard Manajemen Farmasi Klinik - Klinik Pratama Kodaeral XIV</title>
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- React & Babel Standalone -->
     <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -32,7 +29,6 @@
             const [alertType, setAlertType] = useState('success');
             const [productSearch, setProductSearch] = useState('');
 
-            // State Form Barang Masuk (IN)
             const [inForm, setInForm] = useState({
                 docNo: '',
                 supplier: '',
@@ -41,7 +37,6 @@
                 qty: ''
             });
 
-            // State Form Resep Keluar (OUT)
             const [outForm, setOutForm] = useState({
                 patientName: '',
                 rxNo: '',
@@ -49,23 +44,21 @@
                 items: [{ itemId: '', qty: '' }]
             });
 
-            // Mengambil data secara live dari Google Spreadsheet via Apps Script Web App
             useEffect(() => {
                 fetch('https://script.google.com/macros/s/AKfycby2-xyd2juo0820fOVdp0Wq-yqx8ujd662TFPQLxBEfkJ4M0tY67E8iGLWbufjaBUisRw/exec')
                     .then(res => res.json())
                     .then(data => {
                         const formatted = data.map((row, index) => {
-                            const keys = Object.keys(row);
                             return {
-                                id: String(row['Kode Barang'] || row[keys[0]] || `MMPB01${index}`),
-                                name: String(row['Nama Sediaan'] || row['Nama Obat'] || row[keys[1]] || 'Barang Tanpa Nama'),
-                                category: String(row['Kategori'] || row[keys[2]] || 'Oral'),
-                                initialStock: Number(row['Total Stok Fisik'] || row['Stok Fisik'] || row['Stok'] || row[keys[3]] || 0),
-                                unit: String(row['Satuan'] || row[keys[4]] || 'Tablet'),
+                                id: String(row['Kode Barang'] || Object.values(row)[3] || `MMPB01${index}`),
+                                name: String(row['Nama Sediaan'] || row['Nama Barang'] || Object.values(row)[4] || 'Barang Tanpa Nama'),
+                                category: String(row['Kategori'] || Object.values(row)[2] || 'Oral'),
+                                initialStock: Number(row['Stok Fisik'] || row['Total Stok Fisik'] || Object.values(row)[5] || 0),
+                                unit: String(row['Satuan'] || Object.values(row)[6] || 'Tablet'),
                                 minStock: Number(row['Stok Minimum'] || 10),
                                 price: Number(row['Harga Satuan'] || 1000),
-                                expDate: String(row['Tanggal Expired'] || '2027-12-31'),
-                                batchNo: String(row['No. Batch Gabungan'] || row['No. Batch'] || 'BATCH-01')
+                                expDate: String(row['Tanggal Expired'] || Object.values(row)[8] || '2027-12-31').substring(0, 10),
+                                batchNo: String(row['No. Batch'] || row['Kode Batch'] || Object.values(row)[7] || 'BATCH-01')
                             };
                         });
                         setItems(formatted);
